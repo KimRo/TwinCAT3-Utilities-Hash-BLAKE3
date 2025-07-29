@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="blake3_hasher" Id="{9ba4a976-af7b-4691-8ff1-5955544f5363}">
+    <Declaration><![CDATA[// An incremental hasher that can accept any number of writes.
+TYPE blake3_hasher :
+STRUCT
+  chunk_state					: blake3_chunk_state;
+  key_words						: ARRAY[0..7] OF DWORD;
+  cv_stack 						: ARRAY[0..8*54] OF DWORD; // Space for 54 subtree chaining values:
+  cv_stack_len					: BYTE;      // 2^54 * CHUNK_LEN = 2^64
+  flags							: DWORD;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

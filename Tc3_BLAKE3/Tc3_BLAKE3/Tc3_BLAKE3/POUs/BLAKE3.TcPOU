@@ -1,0 +1,643 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="BLAKE3" Id="{3d7a03e6-a8a5-4ade-8340-62efb5953d13}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'no_explicit_call' := 'do not call this POU directly, use the hash method'} 
+FUNCTION_BLOCK BLAKE3
+VAR
+	// Hasher parameters
+	self						: blake3_hasher; 					
+
+	// Hasher assertions
+	bAssertFailed				: BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="blake3_hasher_finalize" Id="{616ab583-af43-41f6-a470-9b4798499ac4}">
+      <Declaration><![CDATA[// Finalize the hash and write any number of output bytes.
+METHOD blake3_hasher_finalize
+VAR_INPUT CONSTANT
+	self						: REFERENCE TO blake3_hasher;
+END_VAR
+VAR_INPUT
+    out     					: REFERENCE TO ARRAY [0..ParameterList.BLAKE3_OUT_LEN-1] OF BYTE;
+END_VAR
+VAR
+    current_output 				: output;
+    parent_nodes_remaining   	: DWORD;
+    current_cv     				: ARRAY[0..7] OF DWORD;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Starting with the output from the current chunk, compute all the parent
+// chaining values along the right edge of the tree, until we have the root
+// output.
+current_output 				:= chunk_state_output(self.chunk_state);
+
+parent_nodes_remaining 		:= self.cv_stack_len;
+WHILE (parent_nodes_remaining > 0) DO
+	parent_nodes_remaining	:= parent_nodes_remaining - 1;
+    output_chaining_value(current_output, current_cv);
+	current_output 			:= parent_output(ADR(self.cv_stack[parent_nodes_remaining * 8]), current_cv, self.key_words, self.flags);
+END_WHILE
+
+// Output the root output.
+output_root_bytes(current_output, out);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="blake3_hasher_init" Id="{fa1bde40-773b-4d1f-b6b5-07cfa03dd097}">
+      <Declaration><![CDATA[// Initialize the `Hasher` for a regular hash function
+METHOD blake3_hasher_init
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[hasher_init_internal(ParameterList.IV, 0);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="blake3_hasher_init_derive_key" Id="{cc7241d1-7b96-471c-a322-301fb204aaf7}">
+      <Declaration><![CDATA[// Initialize the `Hasher` for the key derivation function. 
+// The context string should be hardcoded, globally unique, and application-specific.
+METHOD blake3_hasher_init_derive_key
+VAR_INPUT CONSTANT
+    context 					: STRING; // The context string
+END_VAR
+VAR
+    context_key 				: ARRAY[0..parameterList.BLAKE3_KEY_LEN-1] 		OF BYTE; 
+    context_key_words 			: ARRAY[0..(parameterList.BLAKE3_KEY_LEN/4)-1] 	OF DWORD;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[hasher_init_internal(ParameterList.IV, ParameterList.DERIVE_KEY_CONTEXT);
+blake3_hasher_update(ADR(context), len2(ADR(context)));
+blake3_hasher_finalize(self, context_key);
+words_from_little_endian_bytes(context_key, parameterList.BLAKE3_KEY_LEN, context_key_words);
+hasher_init_internal(context_key_words, ParameterList.DERIVE_KEY_MATERIAL);
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="blake3_hasher_init_keyed" Id="{702113d0-5149-4916-908f-b5006bbf45d3}">
+      <Declaration><![CDATA[// Initialize the `Hasher` for the keyed hash function.
+METHOD blake3_hasher_init_keyed
+VAR_INPUT CONSTANT
+    key 						: ARRAY[0..parameterList.BLAKE3_KEY_LEN-1] 		OF BYTE; 
+END_VAR
+VAR
+    key_words 					: ARRAY[0..(parameterList.BLAKE3_KEY_LEN/4)-1] 	OF DWORD;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[words_from_little_endian_bytes(key, parameterList.BLAKE3_KEY_LEN, key_words);
+hasher_init_internal(key_words, ParameterList.KEYED_HASH);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="blake3_hasher_update" Id="{31eebceb-1e53-40cf-8db0-b4f38c6a5d53}">
+      <Declaration><![CDATA[// Add input to the hash state. This can be called any number of times.
+METHOD blake3_hasher_update
+VAR_INPUT
+    input 						: POINTER TO BYTE; 
+    input_len 					: DWORD;
+END_VAR
+VAR
+    input_idx 					: DWORD := 0;
+    want, take 					: DWORD;
+    chunk_output 				: output;
+    chunk_cv 					: ARRAY[0..7] OF DWORD;
+    total_chunks 				: DWORD;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[WHILE input_len > 0 DO
+    // If the current chunk is complete, finalize it and reset the chunk state.
+	// More input is coming, so this chunk is not ROOT.
+    IF chunk_state_len(self.chunk_state) = parameterList.BLAKE3_CHUNK_LEN THEN
+        chunk_output := chunk_state_output(self.chunk_state);
+        output_chaining_value(chunk_output, chunk_cv);
+        total_chunks := self.chunk_state.chunk_counter + 1;
+        hasher_add_chunk_cv(self, chunk_cv, total_chunks);
+        chunk_state_init(self.chunk_state, self.key_words, total_chunks, self.flags);
+    END_IF
+
+    // Compress input bytes into the current chunk state.
+    want := parameterList.BLAKE3_CHUNK_LEN - chunk_state_len(self.chunk_state);
+    take := want;
+    IF input_len < want THEN
+        take := input_len;
+    END_IF
+
+    chunk_state_update(self.chunk_state, ADR(input[input_idx]), take);
+    input_idx := input_idx + take;
+    input_len := input_len - take;
+END_WHILE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="chunk_state_init" Id="{e3854b7c-55ac-4069-9026-b7c882cc98d0}">
+      <Declaration><![CDATA[METHOD PRIVATE chunk_state_init
+VAR_INPUT
+	self						: REFERENCE TO blake3_chunk_state;
+END_VAR
+VAR_INPUT CONSTANT
+    key_words 					: ARRAY[0..7] OF DWORD;
+    chunk_counter 				: DWORD;
+    flags     					: DWORD;
+END_VAR
+VAR
+    i 							: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[memcpy(ADR(self.chaining_value), ADR(key_words), SIZEOF(self.chaining_value));
+self.chunk_counter 				:= chunk_counter;
+memset(ADR(self.block), 16#0, SIZEOF(self.block));
+self.block_len 					:= 0;
+self.blocks_compressed 			:= 0;
+self.flags 						:= flags;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="chunk_state_len" Id="{68c914a7-804e-46ff-96cb-f89f90d4e6c8}">
+      <Declaration><![CDATA[METHOD PRIVATE chunk_state_len : DWORD
+VAR_INPUT
+	self						: REFERENCE TO blake3_chunk_state;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[chunk_state_len 		:= ParameterList.BLAKE3_BLOCK_LEN * TO_DWORD(self.blocks_compressed) + TO_DWORD(self.block_len);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="chunk_state_output" Id="{5941c8aa-b694-4db7-a0c8-a3a50ab68274}">
+      <Declaration><![CDATA[METHOD PRIVATE chunk_state_output : output
+VAR_INPUT
+	self						: REFERENCE TO blake3_chunk_state;
+END_VAR
+VAR
+	ret_						: output;
+    i 							: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[memcpy(ADR(ret_.input_chaining_value), ADR(self.chaining_value), SIZEOF(ret_.input_chaining_value));
+words_from_little_endian_bytes(self.block, SIZEOF(self.block), ret_.block_words);
+ret_.counter 					:= self.chunk_counter;
+ret_.block_len 					:= TO_DWORD(self.block_len);
+ret_.flags 						:= self.flags OR chunk_state_start_flag(self) OR ParameterList.CHUNK_END;
+chunk_state_output				:= ret_;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="chunk_state_start_flag" Id="{d64a0375-24c1-459e-9063-ed88db95290c}">
+      <Declaration><![CDATA[METHOD PRIVATE chunk_state_start_flag : DWORD
+VAR_INPUT
+	self						: REFERENCE TO blake3_chunk_state;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF self.blocks_compressed = 0 THEN
+    chunk_state_start_flag := ParameterList.CHUNK_START;
+ELSE
+    chunk_state_start_flag := 0;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="chunk_state_update" Id="{5612d1e3-e318-4e58-bdb7-390afa4e9c6e}">
+      <Declaration><![CDATA[METHOD PRIVATE chunk_state_update
+VAR_INPUT
+	self 						: REFERENCE TO blake3_chunk_state;	
+END_VAR
+VAR_INPUT CONSTANT
+    input 						: POINTER TO BYTE; 
+    input_len 					: DWORD;
+END_VAR
+VAR
+    input_u8 					: POINTER TO BYTE;
+    want, take 					: DWORD;
+    i 							: DWORD;
+    block_words 				: ARRAY[0..15] OF DWORD;
+    out16 						: ARRAY[0..15] OF DWORD;
+    temp_flag 					: DWORD;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[input_u8						:= input;
+WHILE (input_len > 0) 			DO
+    // If the block buffer is full, compress it and clear it. More input is
+    // coming, so this compression is not CHUNK_END.
+    IF (self.block_len = parameterList.BLAKE3_BLOCK_LEN) THEN
+		words_from_little_endian_bytes(self.block, parameterList.BLAKE3_BLOCK_LEN,
+                                     block_words);
+		compress(self.chaining_value, block_words, self.chunk_counter,
+               parameterList.BLAKE3_BLOCK_LEN, self.flags OR chunk_state_start_flag(self),
+               out16);
+		memcpy(ADR(self.chaining_value), ADR(out16), SIZEOF(self.chaining_value));
+      	self.blocks_compressed := self.blocks_compressed + 1;
+      	memset(ADR(self.block), 16#0, SIZEOF(self.block));
+      	self.block_len := 0;			   
+	END_IF
+    // Copy input bytes into the block buffer.
+    want := ParameterList.BLAKE3_BLOCK_LEN - self.block_len;
+    take := want;
+    IF (input_len < want) 	THEN
+    	take := input_len;
+    END_IF
+    memcpy(ADR(self.block[self.block_len]), input_u8, take);
+    self.block_len 	:= self.block_len + TO_BYTE(take);
+    input_u8 		:= input_u8 + TO_BYTE(take);
+    input_len 		:= input_len - TO_DWORD(take);	
+END_WHILE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="compress" Id="{53f1c286-6359-45d2-b157-f7de66bbe00b}">
+      <Declaration><![CDATA[METHOD PRIVATE compress
+VAR_INPUT CONSTANT
+	chaining_value						: ARRAY[0..7] OF DWORD;
+	block_words							: ARRAY[0..15] OF DWORD;
+END_VAR
+VAR_INPUT
+	counter								: DWORD;
+	block_len							: DWORD;
+	flags								: DWORD;
+	out									: REFERENCE TO ARRAY[0..15] OF DWORD;
+END_VAR
+VAR
+	state								: ARRAY[0..15] OF DWORD;
+	block								: ARRAY[0..15] OF DWORD;
+	i									: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[state[00] := chaining_value[0];
+state[01] := chaining_value[1];
+state[02] := chaining_value[2];
+state[03] := chaining_value[3];
+state[04] := chaining_value[4];
+state[05] := chaining_value[5];
+state[06] := chaining_value[6];
+state[07] := chaining_value[7];
+state[08] := ParameterList.IV[0];
+state[09] := ParameterList.IV[1];
+state[10] := ParameterList.IV[2];
+state[11] := ParameterList.IV[3];
+state[12] := TO_DWORD(counter);
+state[13] := 0; // TO_DWORD(SHR(counter, 32)); we don't use LWORD
+state[14] := block_len;
+state[15] := flags;
+
+memcpy(ADR(block), ADR(block_words), SIZEOF(block));
+
+round_function(state, block); // round 1
+permute(block);
+round_function(state, block); // round 2
+permute(block);
+round_function(state, block); // round 3
+permute(block);
+round_function(state, block); // round 4
+permute(block);
+round_function(state, block); // round 5
+permute(block);
+round_function(state, block); // round 6
+permute(block);
+round_function(state, block); // round 7
+
+FOR i := 0 TO 7 DO
+	state[i] := state[i] XOR state[i + 8];
+	state[i + 8] := state[i + 8] XOR chaining_value[i];	
+END_FOR
+
+memcpy(ADR(out), ADR(state), SIZEOF(state));
+	]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="g" Id="{6014655a-997b-47b2-8b49-7abc0d086141}">
+      <Declaration><![CDATA[// The mixing function, G, which mixes either a column or a diagonal.
+METHOD PRIVATE g
+VAR_INPUT
+	state 					: REFERENCE TO ARRAY[0..15] OF DWORD;	
+	a, b, c, d 				: DWORD;
+	mx, my 					: DWORD;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[state[a] := state[a] + state[b] + mx;
+state[d] := ROR((state[d] XOR state[a]), 16);
+state[c] := state[c] + state[d];
+state[b] := ROR((state[b] XOR state[c]), 12);
+state[a] := state[a] + state[b] + my;
+state[d] := ROR((state[d] XOR state[a]), 8);
+state[c] := state[c] + state[d];
+state[b] := ROR((state[b] XOR state[c]), 7);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="hasher_add_chunk_cv" Id="{014b851a-6b9a-4b9a-9999-3bde474b791f}">
+      <Declaration><![CDATA[// Section 5.1.2 of the BLAKE3 spec explains this algorithm in more detail.
+METHOD PRIVATE hasher_add_chunk_cv
+VAR_INPUT
+	self						: REFERENCE TO blake3_hasher;
+	new_cv						: REFERENCE TO ARRAY[0..7] OF DWORD;
+	total_chunks				: DWORD;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// This chunk might complete some subtrees. For each completed subtree, its
+// left child will be the current top entry in the CV stack, and its right
+// child will be the current value of `new_cv`. Pop each left child off the
+// stack, merge it with `new_cv`, and overwrite `new_cv` with the result.
+// After all these merges, push the final value of `new_cv` onto the stack.
+// The number of completed subtrees is given by the number of trailing 0-bits
+// in the new total number of chunks.
+WHILE ((total_chunks AND 1) = 0) DO
+	parent_cv(hasher_pop_stack(), new_cv, self.key_words, self.flags, new_cv);
+	total_chunks := SHR(total_chunks, 1);
+END_WHILE
+hasher_push_stack(new_cv);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="hasher_init_internal" Id="{f1ad2f20-11a9-4ee9-93d1-bfe5ebb6acec}">
+      <Declaration><![CDATA[METHOD PRIVATE hasher_init_internal
+VAR_INPUT CONSTANT
+    key_words 					: ARRAY[0..7] OF DWORD;
+    flags     					: DWORD;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[chunk_state_init(self.chunk_state, key_words, 0, flags);
+memcpy(ADR(self.key_words), ADR(key_words), SIZEOF(key_words));
+self.cv_stack_len 		:= 0;
+self.flags 				:= flags;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="hasher_pop_stack" Id="{a41d2612-122e-4325-bb41-6c43459b2c59}">
+      <Declaration><![CDATA[// Returns a pointer to the popped CV, which is valid until the next push.
+METHOD PRIVATE hasher_pop_stack : POINTER TO ARRAY[0..7] OF DWORD
+VAR
+    idx 						: DWORD;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[self.cv_stack_len := self.cv_stack_len - 1;
+hasher_pop_stack := adr(self.cv_stack[self.cv_stack_len * 8]);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="hasher_push_stack" Id="{ea28dbe8-02ac-471f-a4df-58970ca52871}">
+      <Declaration><![CDATA[METHOD PRIVATE hasher_push_stack
+VAR_INPUT
+    cv 							: ARRAY[0..7] OF DWORD;
+END_VAR
+VAR
+    i 							: INT;
+    destIndex 					: DWORD;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[memcpy(ADR(self.cv_stack[self.cv_stack_len * 8]), ADR(cv), 8 * 4);
+self.cv_stack_len := self.cv_stack_len + 1;
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="key_bytes_from_hex_string" Id="{76c53653-006d-48d9-aa32-8952835a68fe}">
+      <Declaration><![CDATA[// convert a string representing hex byte to a hex byte array 
+METHOD PUBLIC key_bytes_from_hex_string
+VAR_INPUT CONSTANT
+	hex_key						: REFERENCE TO STRING;
+END_VAR
+VAR_IN_OUT
+	out							: ARRAY[*] OF BYTE;
+END_VAR
+VAR
+    base_idx 					: POINTER TO STRING(1);
+    input_idx 					: POINTER TO STRING(1);
+	nibbleH						: STRING(1);	
+	nibbleL						: STRING(1);	
+	i							: DWORD;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[base_idx := ADR(hex_key);
+FOR i := 0 TO TO_DWORD(UPPER_BOUND(out, 1)) DO
+	input_idx := base_idx + 2*i;
+	nibbleH := input_idx^;
+	out[i] := HEXCHRNIBBLE_TO_BYTE(nibbleH);
+	input_idx := base_idx + 2*i + 1;
+	nibbleL := input_idx^;
+	out[i] := SHL(out[i],4) + HEXCHRNIBBLE_TO_BYTE(nibbleL);
+END_FOR
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="key_bytes_from_string" Id="{94d32a7e-0f8d-43a4-ac23-863da2d6201c}">
+      <Declaration><![CDATA[// convert a string to a hex byte array 
+METHOD PUBLIC key_bytes_from_string
+VAR_INPUT CONSTANT
+	key							: REFERENCE TO STRING;	
+END_VAR
+VAR_IN_OUT
+	out							: ARRAY[*] OF BYTE;
+END_VAR
+VAR
+	temp 						: ARRAY[0..MAX_STRING_LENGTH] OF BYTE;
+	length						: DWORD;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[temp 	:= MAXSTRING_TO_BYTEARR(key);
+length 	:= TO_DWORD(UPPER_BOUND(out, 1) - LOWER_BOUND(out, 1)); 
+memcpy(out, ADR(temp), length);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="output_chaining_value" Id="{2dc5c03b-9171-43f0-a09b-76d2dc1c6f19}">
+      <Declaration><![CDATA[METHOD PRIVATE output_chaining_value 
+VAR_INPUT
+    self 						: REFERENCE TO output; 					
+    out 						: REFERENCE TO ARRAY[0..7] OF DWORD;
+END_VAR
+VAR
+    out16 						: ARRAY[0..15] OF DWORD;
+    i 							: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Call the compress function (must be implemented elsewhere)
+compress(self.input_chaining_value, self.block_words, self.counter,
+    self.block_len, self.flags,
+    out16
+);
+
+// Copy first 8 DWORDs from out16 to out 
+memcpy(ADR(out), ADR(out16), 8*4);
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="output_root_bytes" Id="{8d1aed52-26da-4479-9a3d-290b9550c78c}">
+      <Declaration><![CDATA[METHOD PRIVATE output_root_bytes 
+VAR_INPUT
+    self 					: REFERENCE TO output; 
+    out 					: REFERENCE TO ARRAY[0..ParameterList.BLAKE3_OUT_LEN-1] OF BYTE; 
+END_VAR
+VAR
+    out_len 				: DWORD;
+    out_idx 				: DWORD := 0;
+    output_block_counter 	: DWORD := 0;
+    words 					: ARRAY[0..15] OF DWORD;
+    word_ 					: INT;
+    byte_ 					: INT;
+    temp_byte 				: BYTE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[out_len		:= ParameterList.BLAKE3_OUT_LEN;
+WHILE out_len > 0 DO
+	compress(self.input_chaining_value, self.block_words, output_block_counter,
+		   self.block_len, self.flags OR self.flags OR ParameterList.ROOT, words);
+    FOR word_ := 0 TO 15 DO
+        FOR byte_ := 0 TO 3 DO
+            IF out_len = 0 THEN
+                RETURN;
+            END_IF
+            temp_byte := TO_BYTE(SHR(words[word_], (8 * byte_)));
+            out[out_idx] := temp_byte;
+            out_idx := out_idx + 1;
+            out_len := out_len - 1;
+        END_FOR
+    END_FOR
+    output_block_counter := output_block_counter + 1;
+END_WHILE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="parent_cv" Id="{7d73656f-008d-43d7-b01a-8c1a0dae259d}">
+      <Declaration><![CDATA[METHOD PRIVATE parent_cv
+VAR_INPUT CONSTANT
+    left_child_cv  				: POINTER TO ARRAY[0..7] OF DWORD;
+    right_child_cv 				: ARRAY[0..7] OF DWORD;
+    key_words      				: ARRAY[0..7] OF DWORD;
+END_VAR
+VAR_INPUT
+    flags          				: DWORD;
+	out 						: REFERENCE TO ARRAY[0..7] OF DWORD;
+END_VAR
+VAR
+	o							: output;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[o := parent_output(left_child_cv, right_child_cv, key_words, flags);
+// We only write to `out` after we've read the inputs. That makes it safe for
+// `out` to alias an input, which we do below.
+output_chaining_value(o, out);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="parent_output" Id="{3d5b6afb-52dd-4639-b005-0901fc3117ad}">
+      <Declaration><![CDATA[METHOD PRIVATE parent_output : output
+VAR_INPUT CONSTANT
+    left_child_cv  				: POINTER TO ARRAY[0..7] OF DWORD;
+    right_child_cv 				: ARRAY[0..7] OF DWORD;
+    key_words      				: ARRAY[0..7] OF DWORD;
+END_VAR
+VAR_INPUT
+    flags          				: DWORD;
+END_VAR
+VAR
+	ret_						: output;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[memcpy(ADR(ret_.input_chaining_value), ADR(key_words), SIZEOF(ret_.input_chaining_value));
+memcpy(ADR(ret_.block_words[0]), left_child_cv, 8 * 4);
+memcpy(ADR(ret_.block_words[8]), ADR(right_child_cv), 8 * 4);
+ret_.counter := 0; // Always 0 for parent nodes.
+ret_.block_len := parameterList.BLAKE3_BLOCK_LEN; // Always BLAKE3_BLOCK_LEN (64) for parent nodes.
+ret_.flags := ParameterList.PARENT OR flags;
+parent_output := ret_;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="permute" Id="{587e8462-3202-4cdb-a2be-2d0c879abd4b}">
+      <Declaration><![CDATA[METHOD PRIVATE permute
+VAR_INPUT
+	m 						: REFERENCE TO ARRAY[0..15] OF DWORD;
+END_VAR
+VAR
+	i						: INT;
+	permuted				: ARRAY[0..15] OF DWORD;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 0 TO 15 DO
+	permuted[i] := m[ParameterList.MSG_PERMUTATION[i]];
+END_FOR
+memcpy(ADR(m), ADR(permuted), SIZEOF(permuted));
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="round_function" Id="{c6e9289f-5fc5-43f3-b5b8-14fbc8b2a295}">
+      <Declaration><![CDATA[METHOD PRIVATE round_function
+VAR_INPUT
+	state 					: REFERENCE TO ARRAY[0..15] OF DWORD;
+	m 						: ARRAY[0..15] OF DWORD;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Mix the columns.
+g(state, 0, 4, 8, 12, m[0], m[1]);
+g(state, 1, 5, 9, 13, m[2], m[3]);
+g(state, 2, 6, 10, 14, m[4], m[5]);
+g(state, 3, 7, 11, 15, m[6], m[7]);
+// Mix the diagonals.
+g(state, 0, 5, 10, 15, m[8], m[9]);
+g(state, 1, 6, 11, 12, m[10], m[11]);
+g(state, 2, 7, 8, 13, m[12], m[13]);
+g(state, 3, 4, 9, 14, m[14], m[15]);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="words_from_little_endian_bytes" Id="{4fb5bbd0-ba59-408c-97e6-5f93e7392bbb}">
+      <Declaration><![CDATA[METHOD PRIVATE words_from_little_endian_bytes : BOOL
+VAR_IN_OUT
+	bytes         			: ARRAY[*] OF BYTE;   	// input ARRAY
+END_VAR
+VAR_INPUT
+	bytes_len    	 		: DWORD;        			// length OF bytes, must be multiple OF 4
+END_VAR
+VAR_IN_OUT
+	out           			: ARRAY[*] OF DWORD;  	// output ARRAY
+END_VAR
+VAR
+    i 						: DWORD;
+END_VAR
+(*
+	Endianness is the byte order used to represent multi-byte values. Little-endian means the least significant byte comes first.
+	Cryptographic algorithms like BLAKE3 often work on 32-bit or 64-bit "words," but input keys and data are typically provided as byte arrays.
+	For cross-platform compatibility, and to match the algorithm’s specification, you must explicitly assemble 32-bit words from bytes in little-endian order. This ensures that the hash function produces the same result on all platforms, regardless of the system's native endianness.
+*)
+	]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Assert: bytes_len must be a multiple of 4
+IF (bytes_len MOD 4) <> 0 THEN
+    // Set assertion failure
+    bAssertFailed := TRUE;
+    RETURN;
+END_IF;
+
+// Actual conversion
+FOR i := 0 TO (bytes_len / 4) - 1 DO
+    out[i] := TO_DWORD(bytes[4*i]) +
+              SHL(TO_DWORD(bytes[4*i + 1]), 8) +
+              SHL(TO_DWORD(bytes[4*i + 2]), 16) +
+              SHL(TO_DWORD(bytes[4*i + 3]), 24);
+END_FOR
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

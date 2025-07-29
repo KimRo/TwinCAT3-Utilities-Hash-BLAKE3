@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="RefVector" Id="{bcf5e03d-1624-4151-874d-d0602a28fb27}">
+    <Declaration><![CDATA[TYPE RefVector :
+STRUCT
+	input_len				: UDINT;
+	hash					: STRING[262];
+	keyed_hash				: STRING[262];
+	derive_key				: STRING[262];
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

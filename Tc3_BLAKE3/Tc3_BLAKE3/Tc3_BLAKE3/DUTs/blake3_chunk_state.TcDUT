@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="blake3_chunk_state" Id="{1a0a90e1-3fee-408b-97a4-a8b3cf77ec4a}">
+    <Declaration><![CDATA[TYPE blake3_chunk_state :
+STRUCT
+  chaining_value				: ARRAY[0..7] OF DWORD;
+  chunk_counter					: DWORD;
+  block							: ARRAY[0..ParameterList.BLAKE3_BLOCK_LEN-1] OF BYTE;
+  block_len						: BYTE;
+  blocks_compressed				: BYTE;				
+  flags							: DWORD;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

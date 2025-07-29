@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="GVL_BLAKE3" Id="{a55a5283-796a-48b9-9c46-c9dd4ab3da84}">
+    <Declaration><![CDATA[//{attribute 'qualified_only'}
+VAR_GLOBAL
+	hasher 								: BLAKE3; 
+	hash 								: ARRAY[0..Tc3_Blake3.ParameterList.BLAKE3_OUT_LEN-1] OF BYTE; 	
+
+	// Test vector data
+	Blake3TestInput						: ARRAY[0..BLAKE3TESTINPUTSIZE-1] OF BYTE;
+    Blake3TestVectors 					: ARRAY[0..BLAKE3TESTVECTORNO] OF refVector; // Array to hold the test vector results
+	Blake3Testkey						: STRING := 'whats the Elvish word for friend';
+	Blake3TestkeyHex 					: ARRAY[0..Tc3_Blake3.parameterList.BLAKE3_KEY_LEN-1] OF BYTE; 
+  	Blake3ContextString					: STRING := 'BLAKE3 2019-12-27 16:29:52 test vectors context';
+END_VAR
+VAR_GLOBAL CONSTANT
+	BLAKE3TESTVECTORNO					: INT := 34;
+	BLAKE3TESTINPUTSIZE					: UDINT := 102400;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

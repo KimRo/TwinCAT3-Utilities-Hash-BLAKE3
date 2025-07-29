@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="size_t" Id="{0d8fd514-99ed-49f2-8636-310c3f4cfc3b}">
+    <Declaration><![CDATA[TYPE size_t : DWORD; END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>
