@@ -6,7 +6,7 @@ A Blake3 Hash calculation library written in Structured Text (ST)
 ## ✅ Features
 Based upon official BLAKE3 reference implementation, https://github.com/BLAKE3-team/BLAKE3
 
-Specifically https://github.com/oconnor663/blake3_reference_impl_c
+Specifically https://github.com/oconnor663/blake3_reference_impl_c by Jack O'Connor
 
 Supports the three defined use cases
 * Scenario 1: Basic hashing (no key, no derive key)
@@ -14,17 +14,6 @@ Supports the three defined use cases
 * Scenario 3: Derive key
 
 Scenarios are tested with the official test vectors published here https://github.com/BLAKE3-team/BLAKE3/blob/master/test_vectors/test_vectors.json in the unit test program included.
-
-## Comparison Summary
-
-| Feature           | Hashing (Standard)                   | Keyed Hashing (MAC/PRF)                | Key Derivation Function (KDF)               |
-| :---------------- | :----------------------------------- | :------------------------------------- | :------------------------------------------ |
-| **Primary Goal** | Data Integrity                       | Data Integrity & Authenticity          | Securely derive diverse keys from input     |
-| **Input Key?** | No (uses fixed IV)                   | Yes (32-byte secret key)               | No (uses context and keying material)       |
-| **Domain Separ.** | Implicit (via input)                 | Implicit (via key)                     | Explicit (via context string)               |
-| **Output Type** | Message Digest / Arbitrary XOF       | Message Authentication Code / Arbitrary XOF | Derived Key(s) / Arbitrary XOF              |
-| **Core Usage** | File checksums, digital signatures   | Authenticating messages, secure comms | Generating encryption/signing keys, session keys |
-| **Flags Used** | `CHUNK_START`, `CHUNK_END`, `PARENT`, `ROOT` | `KEYED_HASH` (in addition to standard flags) | `DERIVE_KEY_CONTEXT`, `DERIVE_KEY_MATERIAL` (in addition to standard flags) |
 
 
 ## 🧠 Remarks and limitations
@@ -36,6 +25,10 @@ Scenarios are tested with the official test vectors published here https://githu
 - No parallellization implemented so expect no drastic better performance compared to other hashing algorithms
 - TO BE INVESTIGATED: speed improvements could be achieved by using TwinCAT job tasks
 - Will disturbe the realtime behavior of the task if too large blobs are hashed, monitor for task overruns
+
+
+## 📦 Dependencies
+* This library relies on [Tc3_AlgoInterfaces](https://www.github.com/kimro/Tc3_AlgoInterfaces) for the use of the generic IDigest interface.
 
 
 ## 🧪 Example
@@ -53,31 +46,31 @@ END_VAR
 
 // Scenario 1: Basic hashing (no key, no derive key)
 // Initialize, hash and finalize
-hasher.blake3_hasher_init();
-hasher.blake3_hasher_update(ADR(dataShort), len2(ADR(dataShort)));
-hasher.blake3_hasher_finalize(hasher.self, hash);
+hasher.init();
+hasher.update(ADR(dataShort), len2(ADR(dataShort)));
+hasher.finalize(hasher.self, hash);
 
 // Initialize, hash and finalize
-hasher.blake3_hasher_init();
-hasher.blake3_hasher_update(ADR(dataLong), len2(ADR(dataLong)));
-hasher.blake3_hasher_finalize(hasher.self, hash);
+hasher.init();
+hasher.update(ADR(dataLong), len2(ADR(dataLong)));
+hasher.finalize(hasher.self, hash);
 
-hasher.blake3_hasher_init();
-hasher.blake3_hasher_update(ADR(dataLong01), len2(ADR(dataLong01)));
-hasher.blake3_hasher_update(ADR(dataLong02), len2(ADR(dataLong02)));
-hasher.blake3_hasher_finalize(hasher.self, hash);
+hasher.init();
+hasher.update(ADR(dataLong01), len2(ADR(dataLong01)));
+hasher.update(ADR(dataLong02), len2(ADR(dataLong02)));
+hasher.finalize(hasher.self, hash);
 
 // Scenario 2: Keyed hashing
 // see RefVectorTests
-hasher.blake3_hasher_init_keyed(Blake3TestKeyHex);
-hasher.blake3_hasher_update(ADR(Blake3TestInput), Blake3TestVectors[i].input_len);
-hasher.blake3_hasher_finalize(hasher.self, hash);
+hasher.init_keyed(Blake3TestKeyHex);
+hasher.update(ADR(Blake3TestInput), Blake3TestVectors[i].input_len);
+hasher.finalize(hasher.self, hash);
 
 // Scenario 3: Derive key
 // see RefVectorTests
-hasher.blake3_hasher_init_derive_key(Blake3ContextString);
-hasher.blake3_hasher_update(ADR(Blake3TestInput), Blake3TestVectors[i].input_len);
-hasher.blake3_hasher_finalize(hasher.self, hash);
+hasher.init_derive_key(Blake3ContextString);
+hasher.update(ADR(Blake3TestInput), Blake3TestVectors[i].input_len);
+hasher.finalize(hasher.self, hash);
 ```
 
 ## 🔢 Understanding the BLAKE3 Algorithm
@@ -117,3 +110,19 @@ The compression function proceeds in 7 rounds, each applying a series of "G" fun
 ### 4. Root Node and Final Hash
 
 This tree construction continues until a single root node is formed. The 32-byte chaining value produced by the compression of the root node (with a specific `ROOT` flag) is the default 32-byte BLAKE3 hash of the entire input message.
+
+## Comparison Summary
+
+| Feature           | Hashing (Standard)                   | Keyed Hashing (MAC/PRF)                | Key Derivation Function (KDF)               |
+| :---------------- | :----------------------------------- | :------------------------------------- | :------------------------------------------ |
+| **Primary Goal** | Data Integrity                       | Data Integrity & Authenticity          | Securely derive diverse keys from input     |
+| **Input Key?** | No (uses fixed IV)                   | Yes (32-byte secret key)               | No (uses context and keying material)       |
+| **Domain Separ.** | Implicit (via input)                 | Implicit (via key)                     | Explicit (via context string)               |
+| **Output Type** | Message Digest / Arbitrary XOF       | Message Authentication Code / Arbitrary XOF | Derived Key(s) / Arbitrary XOF              |
+| **Core Usage** | File checksums, digital signatures   | Authenticating messages, secure comms | Generating encryption/signing keys, session keys |
+| **Flags Used** | `CHUNK_START`, `CHUNK_END`, `PARENT`, `ROOT` | `KEYED_HASH` (in addition to standard flags) | `DERIVE_KEY_CONTEXT`, `DERIVE_KEY_MATERIAL` (in addition to standard flags) |
+
+## ⚖️ License-related information
+
+Attribution to the work of Jack O'Connor (oconnor663).
+This library is derived work based on https://github.com/oconnor663/blake3_reference_impl_c by Jack O'Connor that was released under CC0 1.0 Universal. 

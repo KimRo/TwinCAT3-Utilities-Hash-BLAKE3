@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="IDigestBlake3" Id="{b2adef8f-a73e-4996-bbd4-ce625a2d6dc6}">
+    <Declaration><![CDATA[INTERFACE IDigestBlake3 EXTENDS IDigest
+]]></Declaration>
+    <Method Name="init_derive_key" Id="{69c1c39c-3b6a-453a-a4df-1580c211740a}">
+      <Declaration><![CDATA[// Initialize the `Hasher` for the key derivation function. 
+// The context string should be hardcoded, globally unique, and application-specific.
+METHOD init_derive_key
+VAR_INPUT CONSTANT
+    context 					: STRING; // The context string
+END_VAR
+VAR
+    context_key 				: ARRAY[0..parameterList.BLAKE3_KEY_LEN-1] 		OF BYTE; 
+    context_key_words 			: ARRAY[0..(parameterList.BLAKE3_KEY_LEN/4)-1] 	OF DWORD;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="init_keyed" Id="{51917a18-74e8-4154-ad2a-11c33e1258dd}">
+      <Declaration><![CDATA[// Initialize the `Hasher` for the keyed hash function.
+METHOD init_keyed
+VAR_INPUT CONSTANT
+    key 						: ARRAY[0..parameterList.BLAKE3_KEY_LEN-1] 		OF BYTE; 
+END_VAR
+VAR
+    key_words 					: ARRAY[0..(parameterList.BLAKE3_KEY_LEN/4)-1] 	OF DWORD;
+END_VAR
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

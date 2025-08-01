@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <DUT Name="blake3_hasher" Id="{9ba4a976-af7b-4691-8ff1-5955544f5363}">
+  <DUT Name="blake3_hasher" Id="{c277d529-8a84-4560-9ca1-be6281654aca}">
     <Declaration><![CDATA[// An incremental hasher that can accept any number of writes.
 TYPE blake3_hasher :
 STRUCT

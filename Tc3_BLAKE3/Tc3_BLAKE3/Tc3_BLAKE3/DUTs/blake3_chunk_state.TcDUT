@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <DUT Name="blake3_chunk_state" Id="{1a0a90e1-3fee-408b-97a4-a8b3cf77ec4a}">
+  <DUT Name="blake3_chunk_state" Id="{9a2acfbf-4804-4af1-8670-31bd6bb123d6}">
     <Declaration><![CDATA[TYPE blake3_chunk_state :
 STRUCT
   chaining_value				: ARRAY[0..7] OF DWORD;

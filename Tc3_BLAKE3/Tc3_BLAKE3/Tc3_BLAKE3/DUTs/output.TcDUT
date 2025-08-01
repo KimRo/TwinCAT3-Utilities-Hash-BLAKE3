@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <DUT Name="output" Id="{1c6cab42-7a5a-4c64-ab3e-7703b4e9e671}">
+  <DUT Name="output" Id="{52debcfb-6488-446a-b213-8c3db725e6f4}">
     <Declaration><![CDATA[// Each chunk or parent node can produce either an 8-word chaining value or, by
 // setting the ROOT flag, any number of final output bytes. The Output struct
 // captures the state just prior to choosing between those two possibilities.

@@ -1,142 +1,33 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="BLAKE3" Id="{3d7a03e6-a8a5-4ade-8340-62efb5953d13}" SpecialFunc="None">
+  <POU Name="BLAKE3" Id="{dae23af4-2434-47bc-abcc-4f8bad46b879}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'no_explicit_call' := 'do not call this POU directly, use the hash method'} 
-FUNCTION_BLOCK BLAKE3
+FUNCTION_BLOCK BLAKE3 IMPLEMENTS IDigest
 VAR
 	// Hasher parameters
 	self						: blake3_hasher; 					
 
 	// Hasher assertions
 	bAssertFailed				: BOOL;
-END_VAR]]></Declaration>
+END_VAR
+VAR CONSTANT
+	_ALGORITHM					: STRING := 'BLAKE3';
+END_VAR
+]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="blake3_hasher_finalize" Id="{616ab583-af43-41f6-a470-9b4798499ac4}">
-      <Declaration><![CDATA[// Finalize the hash and write any number of output bytes.
-METHOD blake3_hasher_finalize
-VAR_INPUT CONSTANT
-	self						: REFERENCE TO blake3_hasher;
-END_VAR
-VAR_INPUT
-    out     					: REFERENCE TO ARRAY [0..ParameterList.BLAKE3_OUT_LEN-1] OF BYTE;
-END_VAR
-VAR
-    current_output 				: output;
-    parent_nodes_remaining   	: DWORD;
-    current_cv     				: ARRAY[0..7] OF DWORD;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[// Starting with the output from the current chunk, compute all the parent
-// chaining values along the right edge of the tree, until we have the root
-// output.
-current_output 				:= chunk_state_output(self.chunk_state);
-
-parent_nodes_remaining 		:= self.cv_stack_len;
-WHILE (parent_nodes_remaining > 0) DO
-	parent_nodes_remaining	:= parent_nodes_remaining - 1;
-    output_chaining_value(current_output, current_cv);
-	current_output 			:= parent_output(ADR(self.cv_stack[parent_nodes_remaining * 8]), current_cv, self.key_words, self.flags);
-END_WHILE
-
-// Output the root output.
-output_root_bytes(current_output, out);
+    <Property Name="algorithm" Id="{e69a6d1d-c329-409c-b9ee-a1ca55eb4860}">
+      <Declaration><![CDATA[PROPERTY algorithm : string]]></Declaration>
+      <Get Name="Get" Id="{61f7f7b8-506b-4c1c-bc2e-b68cc0bf80bb}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[algorithm := _ALGORITHM;
 ]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="blake3_hasher_init" Id="{fa1bde40-773b-4d1f-b6b5-07cfa03dd097}">
-      <Declaration><![CDATA[// Initialize the `Hasher` for a regular hash function
-METHOD blake3_hasher_init
-
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[hasher_init_internal(ParameterList.IV, 0);
-]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="blake3_hasher_init_derive_key" Id="{cc7241d1-7b96-471c-a322-301fb204aaf7}">
-      <Declaration><![CDATA[// Initialize the `Hasher` for the key derivation function. 
-// The context string should be hardcoded, globally unique, and application-specific.
-METHOD blake3_hasher_init_derive_key
-VAR_INPUT CONSTANT
-    context 					: STRING; // The context string
-END_VAR
-VAR
-    context_key 				: ARRAY[0..parameterList.BLAKE3_KEY_LEN-1] 		OF BYTE; 
-    context_key_words 			: ARRAY[0..(parameterList.BLAKE3_KEY_LEN/4)-1] 	OF DWORD;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[hasher_init_internal(ParameterList.IV, ParameterList.DERIVE_KEY_CONTEXT);
-blake3_hasher_update(ADR(context), len2(ADR(context)));
-blake3_hasher_finalize(self, context_key);
-words_from_little_endian_bytes(context_key, parameterList.BLAKE3_KEY_LEN, context_key_words);
-hasher_init_internal(context_key_words, ParameterList.DERIVE_KEY_MATERIAL);
-
-]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="blake3_hasher_init_keyed" Id="{702113d0-5149-4916-908f-b5006bbf45d3}">
-      <Declaration><![CDATA[// Initialize the `Hasher` for the keyed hash function.
-METHOD blake3_hasher_init_keyed
-VAR_INPUT CONSTANT
-    key 						: ARRAY[0..parameterList.BLAKE3_KEY_LEN-1] 		OF BYTE; 
-END_VAR
-VAR
-    key_words 					: ARRAY[0..(parameterList.BLAKE3_KEY_LEN/4)-1] 	OF DWORD;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[words_from_little_endian_bytes(key, parameterList.BLAKE3_KEY_LEN, key_words);
-hasher_init_internal(key_words, ParameterList.KEYED_HASH);
-]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="blake3_hasher_update" Id="{31eebceb-1e53-40cf-8db0-b4f38c6a5d53}">
-      <Declaration><![CDATA[// Add input to the hash state. This can be called any number of times.
-METHOD blake3_hasher_update
-VAR_INPUT
-    input 						: POINTER TO BYTE; 
-    input_len 					: DWORD;
-END_VAR
-VAR
-    input_idx 					: DWORD := 0;
-    want, take 					: DWORD;
-    chunk_output 				: output;
-    chunk_cv 					: ARRAY[0..7] OF DWORD;
-    total_chunks 				: DWORD;
-END_VAR
-
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[WHILE input_len > 0 DO
-    // If the current chunk is complete, finalize it and reset the chunk state.
-	// More input is coming, so this chunk is not ROOT.
-    IF chunk_state_len(self.chunk_state) = parameterList.BLAKE3_CHUNK_LEN THEN
-        chunk_output := chunk_state_output(self.chunk_state);
-        output_chaining_value(chunk_output, chunk_cv);
-        total_chunks := self.chunk_state.chunk_counter + 1;
-        hasher_add_chunk_cv(self, chunk_cv, total_chunks);
-        chunk_state_init(self.chunk_state, self.key_words, total_chunks, self.flags);
-    END_IF
-
-    // Compress input bytes into the current chunk state.
-    want := parameterList.BLAKE3_CHUNK_LEN - chunk_state_len(self.chunk_state);
-    take := want;
-    IF input_len < want THEN
-        take := input_len;
-    END_IF
-
-    chunk_state_update(self.chunk_state, ADR(input[input_idx]), take);
-    input_idx := input_idx + take;
-    input_len := input_len - take;
-END_WHILE
-]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="chunk_state_init" Id="{e3854b7c-55ac-4069-9026-b7c882cc98d0}">
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="chunk_state_init" Id="{21a8f356-8b11-4a22-9c84-b11937fba47f}">
       <Declaration><![CDATA[METHOD PRIVATE chunk_state_init
 VAR_INPUT
 	self						: REFERENCE TO blake3_chunk_state;
@@ -160,7 +51,7 @@ self.flags 						:= flags;
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="chunk_state_len" Id="{68c914a7-804e-46ff-96cb-f89f90d4e6c8}">
+    <Method Name="chunk_state_len" Id="{6154c034-ae23-452f-b65f-bbb41d8ddb23}">
       <Declaration><![CDATA[METHOD PRIVATE chunk_state_len : DWORD
 VAR_INPUT
 	self						: REFERENCE TO blake3_chunk_state;
@@ -171,7 +62,7 @@ END_VAR
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="chunk_state_output" Id="{5941c8aa-b694-4db7-a0c8-a3a50ab68274}">
+    <Method Name="chunk_state_output" Id="{75c5f486-2587-418d-b03c-6f45c2ebe46d}">
       <Declaration><![CDATA[METHOD PRIVATE chunk_state_output : output
 VAR_INPUT
 	self						: REFERENCE TO blake3_chunk_state;
@@ -191,7 +82,7 @@ chunk_state_output				:= ret_;
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="chunk_state_start_flag" Id="{d64a0375-24c1-459e-9063-ed88db95290c}">
+    <Method Name="chunk_state_start_flag" Id="{e569c635-339d-46ab-b39d-e0de6669ccc4}">
       <Declaration><![CDATA[METHOD PRIVATE chunk_state_start_flag : DWORD
 VAR_INPUT
 	self						: REFERENCE TO blake3_chunk_state;
@@ -206,7 +97,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="chunk_state_update" Id="{5612d1e3-e318-4e58-bdb7-390afa4e9c6e}">
+    <Method Name="chunk_state_update" Id="{2a2cd029-06a6-4991-9838-fb289e33b9f1}">
       <Declaration><![CDATA[METHOD PRIVATE chunk_state_update
 VAR_INPUT
 	self 						: REFERENCE TO blake3_chunk_state;	
@@ -255,7 +146,7 @@ END_WHILE
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="compress" Id="{53f1c286-6359-45d2-b157-f7de66bbe00b}">
+    <Method Name="compress" Id="{34bbcf4a-9816-425e-9ee2-0bc791c6677e}">
       <Declaration><![CDATA[METHOD PRIVATE compress
 VAR_INPUT CONSTANT
 	chaining_value						: ARRAY[0..7] OF DWORD;
@@ -315,7 +206,43 @@ memcpy(ADR(out), ADR(state), SIZEOF(state));
 	]]></ST>
       </Implementation>
     </Method>
-    <Method Name="g" Id="{6014655a-997b-47b2-8b49-7abc0d086141}">
+    <Method Name="finalize" Id="{8b394368-c9b2-452c-a5aa-bbc457bdcfa0}">
+      <Declaration><![CDATA[// Finalize the hash and write any number of output bytes.
+METHOD finalize
+(*VAR_INPUT CONSTANT
+	self						: REFERENCE TO blake3_hasher;
+END_VAR
+VAR_INPUT
+    out     					: REFERENCE TO ARRAY [0..ParameterList.BLAKE3_OUT_LEN-1] OF BYTE;
+END_VAR*)
+VAR_IN_OUT
+    out     					: ARRAY [*] OF BYTE;
+END_VAR
+VAR
+    current_output 				: output;
+    parent_nodes_remaining   	: DWORD;
+    current_cv     				: ARRAY[0..7] OF DWORD;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Starting with the output from the current chunk, compute all the parent
+// chaining values along the right edge of the tree, until we have the root
+// output.
+current_output 				:= chunk_state_output(self.chunk_state);
+
+parent_nodes_remaining 		:= self.cv_stack_len;
+WHILE (parent_nodes_remaining > 0) DO
+	parent_nodes_remaining	:= parent_nodes_remaining - 1;
+    output_chaining_value(current_output, current_cv);
+	current_output 			:= parent_output(ADR(self.cv_stack[parent_nodes_remaining * 8]), current_cv, self.key_words, self.flags);
+END_WHILE
+
+// Output the root output.
+output_root_bytes(current_output, out);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="g" Id="{517560e9-3e77-409f-b54a-c226bb55f1ea}">
       <Declaration><![CDATA[// The mixing function, G, which mixes either a column or a diagonal.
 METHOD PRIVATE g
 VAR_INPUT
@@ -336,7 +263,7 @@ state[b] := ROR((state[b] XOR state[c]), 7);
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="hasher_add_chunk_cv" Id="{014b851a-6b9a-4b9a-9999-3bde474b791f}">
+    <Method Name="hasher_add_chunk_cv" Id="{5fb50633-c755-4192-aaa2-12901af6be53}">
       <Declaration><![CDATA[// Section 5.1.2 of the BLAKE3 spec explains this algorithm in more detail.
 METHOD PRIVATE hasher_add_chunk_cv
 VAR_INPUT
@@ -362,7 +289,7 @@ hasher_push_stack(new_cv);
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="hasher_init_internal" Id="{f1ad2f20-11a9-4ee9-93d1-bfe5ebb6acec}">
+    <Method Name="hasher_init_internal" Id="{118ac3b7-4b50-4c72-97a0-57e94c15e76d}">
       <Declaration><![CDATA[METHOD PRIVATE hasher_init_internal
 VAR_INPUT CONSTANT
     key_words 					: ARRAY[0..7] OF DWORD;
@@ -377,7 +304,7 @@ self.flags 				:= flags;
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="hasher_pop_stack" Id="{a41d2612-122e-4325-bb41-6c43459b2c59}">
+    <Method Name="hasher_pop_stack" Id="{874a7e1f-d3e0-4048-b7ff-876fcdc195f0}">
       <Declaration><![CDATA[// Returns a pointer to the popped CV, which is valid until the next push.
 METHOD PRIVATE hasher_pop_stack : POINTER TO ARRAY[0..7] OF DWORD
 VAR
@@ -390,7 +317,7 @@ hasher_pop_stack := adr(self.cv_stack[self.cv_stack_len * 8]);
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="hasher_push_stack" Id="{ea28dbe8-02ac-471f-a4df-58970ca52871}">
+    <Method Name="hasher_push_stack" Id="{b1aafeb1-6bef-4702-adbc-5e7359be1712}">
       <Declaration><![CDATA[METHOD PRIVATE hasher_push_stack
 VAR_INPUT
     cv 							: ARRAY[0..7] OF DWORD;
@@ -407,7 +334,55 @@ self.cv_stack_len := self.cv_stack_len + 1;
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="key_bytes_from_hex_string" Id="{76c53653-006d-48d9-aa32-8952835a68fe}">
+    <Method Name="init" Id="{49bc0931-264f-46b0-983c-16301cae7482}">
+      <Declaration><![CDATA[// Initialize the `Hasher` for a regular hash function
+METHOD init
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[hasher_init_internal(ParameterList.IV, 0);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="init_derive_key" Id="{497ac88c-37aa-4e0a-aab6-4e6a0d906e5f}">
+      <Declaration><![CDATA[// Initialize the `Hasher` for the key derivation function. 
+// The context string should be hardcoded, globally unique, and application-specific.
+METHOD init_derive_key
+VAR_INPUT CONSTANT
+    context 					: STRING; // The context string
+END_VAR
+VAR
+    context_key 				: ARRAY[0..parameterList.BLAKE3_KEY_LEN-1] 		OF BYTE; 
+    context_key_words 			: ARRAY[0..(parameterList.BLAKE3_KEY_LEN/4)-1] 	OF DWORD;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[hasher_init_internal(ParameterList.IV, ParameterList.DERIVE_KEY_CONTEXT);
+update(ADR(context), len2(ADR(context)));
+finalize(context_key);
+words_from_little_endian_bytes(context_key, parameterList.BLAKE3_KEY_LEN, context_key_words);
+hasher_init_internal(context_key_words, ParameterList.DERIVE_KEY_MATERIAL);
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="init_keyed" Id="{87868b6b-66bc-4c49-9f72-ce95d526f1b6}">
+      <Declaration><![CDATA[// Initialize the `Hasher` for the keyed hash function.
+METHOD init_keyed
+VAR_INPUT CONSTANT
+    key 						: ARRAY[0..parameterList.BLAKE3_KEY_LEN-1] 		OF BYTE; 
+END_VAR
+VAR
+    key_words 					: ARRAY[0..(parameterList.BLAKE3_KEY_LEN/4)-1] 	OF DWORD;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[words_from_little_endian_bytes(key, parameterList.BLAKE3_KEY_LEN, key_words);
+hasher_init_internal(key_words, ParameterList.KEYED_HASH);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="key_bytes_from_hex_string" Id="{06066894-4910-4a79-bcb6-2a4d6347b18c}">
       <Declaration><![CDATA[// convert a string representing hex byte to a hex byte array 
 METHOD PUBLIC key_bytes_from_hex_string
 VAR_INPUT CONSTANT
@@ -436,7 +411,7 @@ END_FOR
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="key_bytes_from_string" Id="{94d32a7e-0f8d-43a4-ac23-863da2d6201c}">
+    <Method Name="key_bytes_from_string" Id="{5d85caf7-8151-4791-ac59-99e9c8e26681}">
       <Declaration><![CDATA[// convert a string to a hex byte array 
 METHOD PUBLIC key_bytes_from_string
 VAR_INPUT CONSTANT
@@ -456,7 +431,7 @@ memcpy(out, ADR(temp), length);
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="output_chaining_value" Id="{2dc5c03b-9171-43f0-a09b-76d2dc1c6f19}">
+    <Method Name="output_chaining_value" Id="{1ae19a22-a3b8-4b36-8fb7-af0dc792e219}">
       <Declaration><![CDATA[METHOD PRIVATE output_chaining_value 
 VAR_INPUT
     self 						: REFERENCE TO output; 					
@@ -480,15 +455,18 @@ memcpy(ADR(out), ADR(out16), 8*4);
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="output_root_bytes" Id="{8d1aed52-26da-4479-9a3d-290b9550c78c}">
+    <Method Name="output_root_bytes" Id="{565898b5-b555-43f6-85c3-cb492bad2d0b}">
       <Declaration><![CDATA[METHOD PRIVATE output_root_bytes 
 VAR_INPUT
     self 					: REFERENCE TO output; 
-    out 					: REFERENCE TO ARRAY[0..ParameterList.BLAKE3_OUT_LEN-1] OF BYTE; 
+END_VAR
+VAR_IN_OUT
+    out 					: ARRAY[*] OF BYTE; 
 END_VAR
 VAR
     out_len 				: DWORD;
     out_idx 				: DWORD := 0;
+	out_idxUL				: DWORD := 0;
     output_block_counter 	: DWORD := 0;
     words 					: ARRAY[0..15] OF DWORD;
     word_ 					: INT;
@@ -496,13 +474,15 @@ VAR
     temp_byte 				: BYTE;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[out_len		:= ParameterList.BLAKE3_OUT_LEN;
+        <ST><![CDATA[out_idx		:= TO_DWORD(LOWER_BOUND(out,1));
+out_idxUL	:= TO_DWORD(UPPER_BOUND(out,1));
+out_len		:= out_idxUL - out_idx + 1;
 WHILE out_len > 0 DO
 	compress(self.input_chaining_value, self.block_words, output_block_counter,
 		   self.block_len, self.flags OR self.flags OR ParameterList.ROOT, words);
     FOR word_ := 0 TO 15 DO
         FOR byte_ := 0 TO 3 DO
-            IF out_len = 0 THEN
+            IF out_len = 0 OR out_idx > out_idxUL THEN
                 RETURN;
             END_IF
             temp_byte := TO_BYTE(SHR(words[word_], (8 * byte_)));
@@ -516,7 +496,7 @@ END_WHILE
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="parent_cv" Id="{7d73656f-008d-43d7-b01a-8c1a0dae259d}">
+    <Method Name="parent_cv" Id="{7bcb525e-6cb1-42d4-bef8-e0b2f4a50c41}">
       <Declaration><![CDATA[METHOD PRIVATE parent_cv
 VAR_INPUT CONSTANT
     left_child_cv  				: POINTER TO ARRAY[0..7] OF DWORD;
@@ -538,7 +518,7 @@ output_chaining_value(o, out);
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="parent_output" Id="{3d5b6afb-52dd-4639-b005-0901fc3117ad}">
+    <Method Name="parent_output" Id="{b3667ec7-5723-4806-9eaa-02a2376de6a3}">
       <Declaration><![CDATA[METHOD PRIVATE parent_output : output
 VAR_INPUT CONSTANT
     left_child_cv  				: POINTER TO ARRAY[0..7] OF DWORD;
@@ -563,7 +543,7 @@ parent_output := ret_;
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="permute" Id="{587e8462-3202-4cdb-a2be-2d0c879abd4b}">
+    <Method Name="permute" Id="{fd2b317d-5153-44aa-9fa3-693bedef4bce}">
       <Declaration><![CDATA[METHOD PRIVATE permute
 VAR_INPUT
 	m 						: REFERENCE TO ARRAY[0..15] OF DWORD;
@@ -580,7 +560,7 @@ memcpy(ADR(m), ADR(permuted), SIZEOF(permuted));
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="round_function" Id="{c6e9289f-5fc5-43f3-b5b8-14fbc8b2a295}">
+    <Method Name="round_function" Id="{6de1a5a3-2938-4ec6-9bb2-8785f5e6eea1}">
       <Declaration><![CDATA[METHOD PRIVATE round_function
 VAR_INPUT
 	state 					: REFERENCE TO ARRAY[0..15] OF DWORD;
@@ -601,7 +581,49 @@ g(state, 3, 4, 9, 14, m[14], m[15]);
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="words_from_little_endian_bytes" Id="{4fb5bbd0-ba59-408c-97e6-5f93e7392bbb}">
+    <Method Name="update" Id="{7333e62e-9d7a-4b43-bf97-77af20a12a2c}">
+      <Declaration><![CDATA[// Add input to the hash state. This can be called any number of times.
+METHOD update
+VAR_INPUT
+    input 						: POINTER TO BYTE; 
+    input_len 					: DWORD;
+END_VAR
+VAR
+    input_idx 					: DWORD := 0;
+    want, take 					: DWORD;
+    chunk_output 				: output;
+    chunk_cv 					: ARRAY[0..7] OF DWORD;
+    total_chunks 				: DWORD;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[WHILE input_len > 0 DO
+    // If the current chunk is complete, finalize it and reset the chunk state.
+	// More input is coming, so this chunk is not ROOT.
+    IF chunk_state_len(self.chunk_state) = parameterList.BLAKE3_CHUNK_LEN THEN
+        chunk_output := chunk_state_output(self.chunk_state);
+        output_chaining_value(chunk_output, chunk_cv);
+        total_chunks := self.chunk_state.chunk_counter + 1;
+        hasher_add_chunk_cv(self, chunk_cv, total_chunks);
+        chunk_state_init(self.chunk_state, self.key_words, total_chunks, self.flags);
+    END_IF
+
+    // Compress input bytes into the current chunk state.
+    want := parameterList.BLAKE3_CHUNK_LEN - chunk_state_len(self.chunk_state);
+    take := want;
+    IF input_len < want THEN
+        take := input_len;
+    END_IF
+
+    chunk_state_update(self.chunk_state, ADR(input[input_idx]), take);
+    input_idx := input_idx + take;
+    input_len := input_len - take;
+END_WHILE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="words_from_little_endian_bytes" Id="{96f370d2-a440-4d4d-a9e5-c9e6ca8d69d5}">
       <Declaration><![CDATA[METHOD PRIVATE words_from_little_endian_bytes : BOOL
 VAR_IN_OUT
 	bytes         			: ARRAY[*] OF BYTE;   	// input ARRAY

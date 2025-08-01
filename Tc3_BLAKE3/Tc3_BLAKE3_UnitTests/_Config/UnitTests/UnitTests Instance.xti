@@ -92,6 +92,59 @@
 			<BaseType GUID="{18071995-0000-0000-0000-0001000000FF}">STRING(255)</BaseType>
 		</DataType>
 		<DataType>
+			<Name GUID="{88AC6C2E-5260-3DCD-3950-2BA3484DDD89}" Namespace="Tc3_BLAKE3.Tc3_AlgoInterfaces" AutoDeleteType="true">IDigest</Name>
+			<BitSize>64</BitSize>
+			<ExtendsType GUID="{18071995-0000-0000-0000-000000000018}">PVOID</ExtendsType>
+			<Method>
+				<Name>__getalgorithm</Name>
+				<ReturnType GUID="{18071995-0000-0000-0000-000100000050}">STRING(80)</ReturnType>
+				<ReturnBitSize>648</ReturnBitSize>
+				<Properties>
+					<Property>
+						<Name>property</Name>
+					</Property>
+				</Properties>
+			</Method>
+			<Method>
+				<Name>finalize</Name>
+				<Comment><![CDATA[ Finalize the input and return any number of output bytes.]]></Comment>
+				<ReturnBitSize X64="64">32</ReturnBitSize>
+				<Parameter>
+					<Name>out</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000001}" PointerTo="1" RpcArrayDim="1">BYTE</Type>
+					<BitSize>64</BitSize>
+					<Properties>
+						<Property>
+							<Name>variable_length_array</Name>
+						</Property>
+						<Property>
+							<Name>Dimensions</Name>
+							<Value>1</Value>
+						</Property>
+					</Properties>
+				</Parameter>
+			</Method>
+			<Method>
+				<Name>init</Name>
+				<ReturnBitSize X64="64">32</ReturnBitSize>
+			</Method>
+			<Method>
+				<Name>update</Name>
+				<Comment><![CDATA[ Add input, depending on the algorithm this could be called any number of times.]]></Comment>
+				<ReturnBitSize X64="64">32</ReturnBitSize>
+				<Parameter>
+					<Name>input</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000001}" PointerTo="1">BYTE</Type>
+					<BitSize>64</BitSize>
+				</Parameter>
+				<Parameter>
+					<Name>input_len</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Parameter>
+			</Method>
+		</DataType>
+		<DataType>
 			<Name GUID="{D6DA5282-1192-8B2D-F01A-AF7468BA4CBA}" Namespace="Tc3_BLAKE3" AutoDeleteType="true">blake3_chunk_state</Name>
 			<BitSize>864</BitSize>
 			<SubItem>
@@ -235,21 +288,31 @@
 			</SubItem>
 		</DataType>
 		<DataType>
-			<Name GUID="{47DA8583-0AEF-64CB-35BB-440FB4150DAE}" Namespace="Tc3_BLAKE3" AutoDeleteType="true">BLAKE3</Name>
-			<BitSize>15168</BitSize>
+			<Name GUID="{BD7B4E7F-327E-3271-35E4-38A98EB2BBEF}" Namespace="Tc3_BLAKE3" AutoDeleteType="true">BLAKE3</Name>
+			<BitSize>15872</BitSize>
+			<Implements GUID="{88AC6C2E-5260-3DCD-3950-2BA3484DDD89}" Namespace="Tc3_BLAKE3.Tc3_AlgoInterfaces">true</Implements>
 			<SubItem>
 				<Name>self</Name>
 				<Type GUID="{7909815D-FE62-0D90-266A-15D002283B0F}" Namespace="Tc3_BLAKE3">blake3_hasher</Type>
 				<Comment><![CDATA[ Hasher parameters]]></Comment>
 				<BitSize>15040</BitSize>
-				<BitOffs>64</BitOffs>
+				<BitOffs>128</BitOffs>
 			</SubItem>
 			<SubItem>
 				<Name>bAssertFailed</Name>
 				<Type GUID="{18071995-0000-0000-0000-000000000030}">BOOL</Type>
 				<Comment><![CDATA[ Hasher assertions]]></Comment>
 				<BitSize>8</BitSize>
-				<BitOffs>15104</BitOffs>
+				<BitOffs>15168</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>_ALGORITHM</Name>
+				<Type GUID="{18071995-0000-0000-0000-000100000050}">STRING(80)</Type>
+				<BitSize>648</BitSize>
+				<BitOffs>15176</BitOffs>
+				<Default>
+					<String><![CDATA[BLAKE3]]></String>
+				</Default>
 			</SubItem>
 			<Method>
 				<Name>chunk_state_init</Name>
@@ -300,12 +363,150 @@
 				</Local>
 			</Method>
 			<Method>
-				<Name>words_from_little_endian_bytes</Name>
-				<ReturnType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</ReturnType>
-				<ReturnBitSize>8</ReturnBitSize>
+				<Name>output_chaining_value</Name>
+				<ReturnBitSize X64="64">32</ReturnBitSize>
 				<Parameter>
-					<Name>bytes</Name>
-					<Comment><![CDATA[ input ARRAY]]></Comment>
+					<Name>self</Name>
+					<Type GUID="{D929677C-D2DD-0C01-EFDB-EB19F37664AB}" Namespace="Tc3_BLAKE3" ReferenceTo="true">output</Type>
+					<BitSize>64</BitSize>
+				</Parameter>
+				<Parameter>
+					<Name>out</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<ArrayInfo ReferenceTo="true">
+						<LBound>0</LBound>
+						<Elements>8</Elements>
+					</ArrayInfo>
+					<BitSize>64</BitSize>
+				</Parameter>
+				<Local>
+					<Name>out16</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<ArrayInfo>
+						<LBound>0</LBound>
+						<Elements>16</Elements>
+					</ArrayInfo>
+					<BitSize>512</BitSize>
+				</Local>
+				<Local>
+					<Name>i</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000006}">INT</Type>
+					<BitSize>16</BitSize>
+				</Local>
+				<Local>
+					<Name>__Index__0</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
+					<BitSize>32</BitSize>
+				</Local>
+			</Method>
+			<Method>
+				<Name>update</Name>
+				<Comment><![CDATA[ Add input to the hash state. This can be called any number of times.]]></Comment>
+				<ReturnBitSize X64="64">32</ReturnBitSize>
+				<Parameter>
+					<Name>input</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000001}" PointerTo="1">BYTE</Type>
+					<BitSize>64</BitSize>
+				</Parameter>
+				<Parameter>
+					<Name>input_len</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Parameter>
+				<Local>
+					<Name>input_idx</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Local>
+				<Local>
+					<Name>want</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Local>
+				<Local>
+					<Name>take</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Local>
+				<Local>
+					<Name>chunk_output</Name>
+					<Type GUID="{D929677C-D2DD-0C01-EFDB-EB19F37664AB}" Namespace="Tc3_BLAKE3">output</Type>
+					<BitSize>864</BitSize>
+				</Local>
+				<Local>
+					<Name>chunk_cv</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<ArrayInfo>
+						<LBound>0</LBound>
+						<Elements>8</Elements>
+					</ArrayInfo>
+					<BitSize>256</BitSize>
+				</Local>
+				<Local>
+					<Name>total_chunks</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Local>
+				<Local>
+					<Name>__Index__0</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
+					<BitSize>32</BitSize>
+				</Local>
+			</Method>
+			<Method>
+				<Name>g</Name>
+				<Comment><![CDATA[ The mixing function, G, which mixes either a column or a diagonal.]]></Comment>
+				<ReturnBitSize X64="64">32</ReturnBitSize>
+				<Parameter>
+					<Name>state</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<ArrayInfo ReferenceTo="true">
+						<LBound>0</LBound>
+						<Elements>16</Elements>
+					</ArrayInfo>
+					<BitSize>64</BitSize>
+				</Parameter>
+				<Parameter>
+					<Name>a</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Parameter>
+				<Parameter>
+					<Name>b</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Parameter>
+				<Parameter>
+					<Name>c</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Parameter>
+				<Parameter>
+					<Name>d</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Parameter>
+				<Parameter>
+					<Name>mx</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Parameter>
+				<Parameter>
+					<Name>my</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Parameter>
+			</Method>
+			<Method>
+				<Name>output_root_bytes</Name>
+				<ReturnBitSize X64="64">32</ReturnBitSize>
+				<Parameter>
+					<Name>self</Name>
+					<Type GUID="{D929677C-D2DD-0C01-EFDB-EB19F37664AB}" Namespace="Tc3_BLAKE3" ReferenceTo="true">output</Type>
+					<BitSize>64</BitSize>
+				</Parameter>
+				<Parameter>
+					<Name>out</Name>
 					<Type GUID="{18071995-0000-0000-0000-000000000001}" PointerTo="1" RpcArrayDim="1">BYTE</Type>
 					<BitSize>64</BitSize>
 					<Properties>
@@ -318,71 +519,49 @@
 						</Property>
 					</Properties>
 				</Parameter>
-				<Parameter>
-					<Name>bytes_len</Name>
-					<Comment><![CDATA[ length OF bytes, must be multiple OF 4]]></Comment>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Parameter>
-				<Parameter>
-					<Name>out</Name>
-					<Comment><![CDATA[ output ARRAY]]></Comment>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}" PointerTo="1" RpcArrayDim="1">DWORD</Type>
-					<BitSize>64</BitSize>
-					<Properties>
-						<Property>
-							<Name>variable_length_array</Name>
-						</Property>
-						<Property>
-							<Name>Dimensions</Name>
-							<Value>1</Value>
-						</Property>
-					</Properties>
-				</Parameter>
 				<Local>
-					<Name>i</Name>
+					<Name>out_len</Name>
 					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
 					<BitSize>32</BitSize>
 				</Local>
-			</Method>
-			<Method>
-				<Name>blake3_hasher_init</Name>
-				<Comment><![CDATA[ Initialize the `Hasher` for a regular hash function]]></Comment>
-				<ReturnBitSize X64="64">32</ReturnBitSize>
-			</Method>
-			<Method>
-				<Name>blake3_hasher_init_derive_key</Name>
-				<Comment><![CDATA[ Initialize the `Hasher` for the key derivation function. 
- The context string should be hardcoded, globally unique, and application-specific.]]></Comment>
-				<ReturnBitSize X64="64">32</ReturnBitSize>
-				<Parameter>
-					<Name>context</Name>
-					<Comment><![CDATA[ The context string]]></Comment>
-					<Type GUID="{18071995-0000-0000-0000-000100000050}">STRING(80)</Type>
-					<BitSize>648</BitSize>
-					<Properties>
-						<Property>
-							<Name>input_constant</Name>
-						</Property>
-					</Properties>
-				</Parameter>
 				<Local>
-					<Name>context_key</Name>
+					<Name>out_idx</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Local>
+				<Local>
+					<Name>out_idxUL</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Local>
+				<Local>
+					<Name>output_block_counter</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Local>
+				<Local>
+					<Name>words</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<ArrayInfo>
+						<LBound>0</LBound>
+						<Elements>16</Elements>
+					</ArrayInfo>
+					<BitSize>512</BitSize>
+				</Local>
+				<Local>
+					<Name>word_</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000006}">INT</Type>
+					<BitSize>16</BitSize>
+				</Local>
+				<Local>
+					<Name>byte_</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000006}">INT</Type>
+					<BitSize>16</BitSize>
+				</Local>
+				<Local>
+					<Name>temp_byte</Name>
 					<Type GUID="{18071995-0000-0000-0000-000000000001}">BYTE</Type>
-					<ArrayInfo>
-						<LBound>0</LBound>
-						<Elements>32</Elements>
-					</ArrayInfo>
-					<BitSize>256</BitSize>
-				</Local>
-				<Local>
-					<Name>context_key_words</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<ArrayInfo>
-						<LBound>0</LBound>
-						<Elements>8</Elements>
-					</ArrayInfo>
-					<BitSize>256</BitSize>
+					<BitSize>8</BitSize>
 				</Local>
 				<Local>
 					<Name>__Index__0</Name>
@@ -424,6 +603,46 @@
 				<Local>
 					<Name>idx</Name>
 					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Local>
+			</Method>
+			<Method>
+				<Name>init_derive_key</Name>
+				<Comment><![CDATA[ Initialize the `Hasher` for the key derivation function. 
+ The context string should be hardcoded, globally unique, and application-specific.]]></Comment>
+				<ReturnBitSize X64="64">32</ReturnBitSize>
+				<Parameter>
+					<Name>context</Name>
+					<Comment><![CDATA[ The context string]]></Comment>
+					<Type GUID="{18071995-0000-0000-0000-000100000050}">STRING(80)</Type>
+					<BitSize>648</BitSize>
+					<Properties>
+						<Property>
+							<Name>input_constant</Name>
+						</Property>
+					</Properties>
+				</Parameter>
+				<Local>
+					<Name>context_key</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000001}">BYTE</Type>
+					<ArrayInfo>
+						<LBound>0</LBound>
+						<Elements>32</Elements>
+					</ArrayInfo>
+					<BitSize>256</BitSize>
+				</Local>
+				<Local>
+					<Name>context_key_words</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<ArrayInfo>
+						<LBound>0</LBound>
+						<Elements>8</Elements>
+					</ArrayInfo>
+					<BitSize>256</BitSize>
+				</Local>
+				<Local>
+					<Name>__Index__0</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
 					<BitSize>32</BitSize>
 				</Local>
 			</Method>
@@ -540,68 +759,6 @@
 				</Local>
 			</Method>
 			<Method>
-				<Name>output_root_bytes</Name>
-				<ReturnBitSize X64="64">32</ReturnBitSize>
-				<Parameter>
-					<Name>self</Name>
-					<Type GUID="{D929677C-D2DD-0C01-EFDB-EB19F37664AB}" Namespace="Tc3_BLAKE3" ReferenceTo="true">output</Type>
-					<BitSize>64</BitSize>
-				</Parameter>
-				<Parameter>
-					<Name>out</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000001}">BYTE</Type>
-					<ArrayInfo ReferenceTo="true">
-						<LBound>0</LBound>
-						<Elements>32</Elements>
-					</ArrayInfo>
-					<BitSize>64</BitSize>
-				</Parameter>
-				<Local>
-					<Name>out_len</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Local>
-				<Local>
-					<Name>out_idx</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Local>
-				<Local>
-					<Name>output_block_counter</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Local>
-				<Local>
-					<Name>words</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<ArrayInfo>
-						<LBound>0</LBound>
-						<Elements>16</Elements>
-					</ArrayInfo>
-					<BitSize>512</BitSize>
-				</Local>
-				<Local>
-					<Name>word_</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000006}">INT</Type>
-					<BitSize>16</BitSize>
-				</Local>
-				<Local>
-					<Name>byte_</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000006}">INT</Type>
-					<BitSize>16</BitSize>
-				</Local>
-				<Local>
-					<Name>temp_byte</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000001}">BYTE</Type>
-					<BitSize>8</BitSize>
-				</Local>
-				<Local>
-					<Name>__Index__0</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
-					<BitSize>32</BitSize>
-				</Local>
-			</Method>
-			<Method>
 				<Name>permute</Name>
 				<ReturnBitSize X64="64">32</ReturnBitSize>
 				<Parameter>
@@ -626,6 +783,54 @@
 						<Elements>16</Elements>
 					</ArrayInfo>
 					<BitSize>512</BitSize>
+				</Local>
+				<Local>
+					<Name>__Index__0</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
+					<BitSize>32</BitSize>
+				</Local>
+			</Method>
+			<Method>
+				<Name>init</Name>
+				<Comment><![CDATA[ Initialize the `Hasher` for a regular hash function]]></Comment>
+				<ReturnBitSize X64="64">32</ReturnBitSize>
+			</Method>
+			<Method>
+				<Name>finalize</Name>
+				<Comment><![CDATA[ Finalize the hash and write any number of output bytes.]]></Comment>
+				<ReturnBitSize X64="64">32</ReturnBitSize>
+				<Parameter>
+					<Name>out</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000001}" PointerTo="1" RpcArrayDim="1">BYTE</Type>
+					<BitSize>64</BitSize>
+					<Properties>
+						<Property>
+							<Name>variable_length_array</Name>
+						</Property>
+						<Property>
+							<Name>Dimensions</Name>
+							<Value>1</Value>
+						</Property>
+					</Properties>
+				</Parameter>
+				<Local>
+					<Name>current_output</Name>
+					<Type GUID="{D929677C-D2DD-0C01-EFDB-EB19F37664AB}" Namespace="Tc3_BLAKE3">output</Type>
+					<BitSize>864</BitSize>
+				</Local>
+				<Local>
+					<Name>parent_nodes_remaining</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Local>
+				<Local>
+					<Name>current_cv</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<ArrayInfo>
+						<LBound>0</LBound>
+						<Elements>8</Elements>
+					</ArrayInfo>
+					<BitSize>256</BitSize>
 				</Local>
 				<Local>
 					<Name>__Index__0</Name>
@@ -703,39 +908,6 @@
 					<Name>temp_flag</Name>
 					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
 					<BitSize>32</BitSize>
-				</Local>
-				<Local>
-					<Name>__Index__0</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
-					<BitSize>32</BitSize>
-				</Local>
-			</Method>
-			<Method>
-				<Name>blake3_hasher_init_keyed</Name>
-				<Comment><![CDATA[ Initialize the `Hasher` for the keyed hash function.]]></Comment>
-				<ReturnBitSize X64="64">32</ReturnBitSize>
-				<Parameter>
-					<Name>key</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000001}">BYTE</Type>
-					<ArrayInfo>
-						<LBound>0</LBound>
-						<Elements>32</Elements>
-					</ArrayInfo>
-					<BitSize>256</BitSize>
-					<Properties>
-						<Property>
-							<Name>input_constant</Name>
-						</Property>
-					</Properties>
-				</Parameter>
-				<Local>
-					<Name>key_words</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<ArrayInfo>
-						<LBound>0</LBound>
-						<Elements>8</Elements>
-					</ArrayInfo>
-					<BitSize>256</BitSize>
 				</Local>
 				<Local>
 					<Name>__Index__0</Name>
@@ -923,152 +1095,6 @@
 				</Parameter>
 			</Method>
 			<Method>
-				<Name>blake3_hasher_finalize</Name>
-				<Comment><![CDATA[ Finalize the hash and write any number of output bytes.]]></Comment>
-				<ReturnBitSize X64="64">32</ReturnBitSize>
-				<Parameter>
-					<Name>self</Name>
-					<Type GUID="{7909815D-FE62-0D90-266A-15D002283B0F}" Namespace="Tc3_BLAKE3" ReferenceTo="true">blake3_hasher</Type>
-					<BitSize>64</BitSize>
-					<Properties>
-						<Property>
-							<Name>input_constant</Name>
-						</Property>
-					</Properties>
-				</Parameter>
-				<Parameter>
-					<Name>out</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000001}">BYTE</Type>
-					<ArrayInfo ReferenceTo="true">
-						<LBound>0</LBound>
-						<Elements>32</Elements>
-					</ArrayInfo>
-					<BitSize>64</BitSize>
-				</Parameter>
-				<Local>
-					<Name>current_output</Name>
-					<Type GUID="{D929677C-D2DD-0C01-EFDB-EB19F37664AB}" Namespace="Tc3_BLAKE3">output</Type>
-					<BitSize>864</BitSize>
-				</Local>
-				<Local>
-					<Name>parent_nodes_remaining</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Local>
-				<Local>
-					<Name>current_cv</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<ArrayInfo>
-						<LBound>0</LBound>
-						<Elements>8</Elements>
-					</ArrayInfo>
-					<BitSize>256</BitSize>
-				</Local>
-				<Local>
-					<Name>__Index__0</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
-					<BitSize>32</BitSize>
-				</Local>
-			</Method>
-			<Method>
-				<Name>blake3_hasher_update</Name>
-				<Comment><![CDATA[ Add input to the hash state. This can be called any number of times.]]></Comment>
-				<ReturnBitSize X64="64">32</ReturnBitSize>
-				<Parameter>
-					<Name>input</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000001}" PointerTo="1">BYTE</Type>
-					<BitSize>64</BitSize>
-				</Parameter>
-				<Parameter>
-					<Name>input_len</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Parameter>
-				<Local>
-					<Name>input_idx</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Local>
-				<Local>
-					<Name>want</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Local>
-				<Local>
-					<Name>take</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Local>
-				<Local>
-					<Name>chunk_output</Name>
-					<Type GUID="{D929677C-D2DD-0C01-EFDB-EB19F37664AB}" Namespace="Tc3_BLAKE3">output</Type>
-					<BitSize>864</BitSize>
-				</Local>
-				<Local>
-					<Name>chunk_cv</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<ArrayInfo>
-						<LBound>0</LBound>
-						<Elements>8</Elements>
-					</ArrayInfo>
-					<BitSize>256</BitSize>
-				</Local>
-				<Local>
-					<Name>total_chunks</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Local>
-				<Local>
-					<Name>__Index__0</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000009}">DINT</Type>
-					<BitSize>32</BitSize>
-				</Local>
-			</Method>
-			<Method>
-				<Name>g</Name>
-				<Comment><![CDATA[ The mixing function, G, which mixes either a column or a diagonal.]]></Comment>
-				<ReturnBitSize X64="64">32</ReturnBitSize>
-				<Parameter>
-					<Name>state</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<ArrayInfo ReferenceTo="true">
-						<LBound>0</LBound>
-						<Elements>16</Elements>
-					</ArrayInfo>
-					<BitSize>64</BitSize>
-				</Parameter>
-				<Parameter>
-					<Name>a</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Parameter>
-				<Parameter>
-					<Name>b</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Parameter>
-				<Parameter>
-					<Name>c</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Parameter>
-				<Parameter>
-					<Name>d</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Parameter>
-				<Parameter>
-					<Name>mx</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Parameter>
-				<Parameter>
-					<Name>my</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<BitSize>32</BitSize>
-				</Parameter>
-			</Method>
-			<Method>
 				<Name>chunk_state_output</Name>
 				<ReturnType GUID="{D929677C-D2DD-0C01-EFDB-EB19F37664AB}" Namespace="Tc3_BLAKE3">output</ReturnType>
 				<ReturnBitSize>864</ReturnBitSize>
@@ -1147,35 +1173,92 @@
 				</Local>
 			</Method>
 			<Method>
-				<Name>output_chaining_value</Name>
-				<ReturnBitSize X64="64">32</ReturnBitSize>
+				<Name>words_from_little_endian_bytes</Name>
+				<ReturnType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</ReturnType>
+				<ReturnBitSize>8</ReturnBitSize>
 				<Parameter>
-					<Name>self</Name>
-					<Type GUID="{D929677C-D2DD-0C01-EFDB-EB19F37664AB}" Namespace="Tc3_BLAKE3" ReferenceTo="true">output</Type>
+					<Name>bytes</Name>
+					<Comment><![CDATA[ input ARRAY]]></Comment>
+					<Type GUID="{18071995-0000-0000-0000-000000000001}" PointerTo="1" RpcArrayDim="1">BYTE</Type>
 					<BitSize>64</BitSize>
+					<Properties>
+						<Property>
+							<Name>variable_length_array</Name>
+						</Property>
+						<Property>
+							<Name>Dimensions</Name>
+							<Value>1</Value>
+						</Property>
+					</Properties>
+				</Parameter>
+				<Parameter>
+					<Name>bytes_len</Name>
+					<Comment><![CDATA[ length OF bytes, must be multiple OF 4]]></Comment>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
 				</Parameter>
 				<Parameter>
 					<Name>out</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
-					<ArrayInfo ReferenceTo="true">
-						<LBound>0</LBound>
-						<Elements>8</Elements>
-					</ArrayInfo>
+					<Comment><![CDATA[ output ARRAY]]></Comment>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}" PointerTo="1" RpcArrayDim="1">DWORD</Type>
 					<BitSize>64</BitSize>
+					<Properties>
+						<Property>
+							<Name>variable_length_array</Name>
+						</Property>
+						<Property>
+							<Name>Dimensions</Name>
+							<Value>1</Value>
+						</Property>
+					</Properties>
 				</Parameter>
 				<Local>
-					<Name>out16</Name>
+					<Name>i</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
+					<BitSize>32</BitSize>
+				</Local>
+			</Method>
+			<Method>
+				<Name>__getalgorithm</Name>
+				<ReturnType GUID="{18071995-0000-0000-0000-000100000050}">STRING(80)</ReturnType>
+				<ReturnBitSize>648</ReturnBitSize>
+				<Local>
+					<Name>algorithm</Name>
+					<Type GUID="{18071995-0000-0000-0000-000100000050}">STRING(80)</Type>
+					<BitSize>648</BitSize>
+				</Local>
+				<Properties>
+					<Property>
+						<Name>property</Name>
+					</Property>
+				</Properties>
+			</Method>
+			<Method>
+				<Name>init_keyed</Name>
+				<Comment><![CDATA[ Initialize the `Hasher` for the keyed hash function.]]></Comment>
+				<ReturnBitSize X64="64">32</ReturnBitSize>
+				<Parameter>
+					<Name>key</Name>
+					<Type GUID="{18071995-0000-0000-0000-000000000001}">BYTE</Type>
+					<ArrayInfo>
+						<LBound>0</LBound>
+						<Elements>32</Elements>
+					</ArrayInfo>
+					<BitSize>256</BitSize>
+					<Properties>
+						<Property>
+							<Name>input_constant</Name>
+						</Property>
+					</Properties>
+				</Parameter>
+				<Local>
+					<Name>key_words</Name>
 					<Type GUID="{18071995-0000-0000-0000-000000000007}">DWORD</Type>
 					<ArrayInfo>
 						<LBound>0</LBound>
-						<Elements>16</Elements>
+						<Elements>8</Elements>
 					</ArrayInfo>
-					<BitSize>512</BitSize>
-				</Local>
-				<Local>
-					<Name>i</Name>
-					<Type GUID="{18071995-0000-0000-0000-000000000006}">INT</Type>
-					<BitSize>16</BitSize>
+					<BitSize>256</BitSize>
 				</Local>
 				<Local>
 					<Name>__Index__0</Name>
@@ -1732,7 +1815,7 @@
 			</Properties>
 		</DataType>
 	</DataTypes>
-	<Instance Id="#x08502000" KeepUnrestoredLinks="2" TmcPath="UnitTests\UnitTests.tmc" TmcHash="{D2C5BA02-38F1-E8B1-DE73-E66C564E07E4}">
+	<Instance Id="#x08502000" KeepUnrestoredLinks="2" TmcPath="UnitTests\UnitTests.tmc" TmcHash="{7BB95AE1-8E2D-0CA1-7496-C1DAFC4BF450}">
 		<Name>__FILENAME__</Name>
 		<TmcDesc GUID="{9DF3F8FB-250E-4B37-A1BA-36E82D10EFDD}" TcSmClass="TComPlcObjDef">
 			<Name>UnitTests</Name>
@@ -3884,230 +3967,6 @@
 						<BitOffs>3076608</BitOffs>
 					</Symbol>
 					<Symbol>
-						<Name>Global_Version.stLibVersion_Tc3_BLAKE3</Name>
-						<BitSize>288</BitSize>
-						<BaseType GUID="{6F5942ED-BFA1-497D-8225-23C6DAAD0A09}">ST_LibVersion</BaseType>
-						<Default>
-							<SubItem>
-								<Name>.iMajor</Name>
-								<Value>0</Value>
-							</SubItem>
-							<SubItem>
-								<Name>.iMinor</Name>
-								<Value>0</Value>
-							</SubItem>
-							<SubItem>
-								<Name>.iBuild</Name>
-								<Value>0</Value>
-							</SubItem>
-							<SubItem>
-								<Name>.iRevision</Name>
-								<Value>1</Value>
-							</SubItem>
-							<SubItem>
-								<Name>.nFlags</Name>
-								<Value>0</Value>
-							</SubItem>
-							<SubItem>
-								<Name>.sVersion</Name>
-								<String><![CDATA[0.0.0.1]]></String>
-							</SubItem>
-						</Default>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-							<Property>
-								<Name>const_non_replaced</Name>
-							</Property>
-						</Properties>
-						<BitOffs>3077248</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>ParameterList.BLAKE3_OUT_LEN</Name>
-						<BitSize>32</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
-						<Default>
-							<Value>32</Value>
-						</Default>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-						</Properties>
-						<BitOffs>3077536</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>ParameterList.BLAKE3_KEY_LEN</Name>
-						<BitSize>32</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
-						<Default>
-							<Value>32</Value>
-						</Default>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-						</Properties>
-						<BitOffs>3077568</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>ParameterList.BLAKE3_BLOCK_LEN</Name>
-						<BitSize>32</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
-						<Default>
-							<Value>64</Value>
-						</Default>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-						</Properties>
-						<BitOffs>3077600</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>ParameterList.BLAKE3_CHUNK_LEN</Name>
-						<BitSize>32</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
-						<Default>
-							<Value>1024</Value>
-						</Default>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-						</Properties>
-						<BitOffs>3077632</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>ParameterList.MSG_PERMUTATION</Name>
-						<BitSize>512</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
-						<ArrayInfo>
-							<LBound>0</LBound>
-							<Elements>16</Elements>
-						</ArrayInfo>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-						</Properties>
-						<BitOffs>3077664</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>ParameterList.IV</Name>
-						<BitSize>256</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
-						<ArrayInfo>
-							<LBound>0</LBound>
-							<Elements>8</Elements>
-						</ArrayInfo>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-						</Properties>
-						<BitOffs>3078176</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>ParameterList.CHUNK_START</Name>
-						<BitSize>32</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
-						<Default>
-							<Value>1</Value>
-						</Default>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-						</Properties>
-						<BitOffs>3078432</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>ParameterList.CHUNK_END</Name>
-						<BitSize>32</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
-						<Default>
-							<Value>2</Value>
-						</Default>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-						</Properties>
-						<BitOffs>3078464</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>ParameterList.PARENT</Name>
-						<BitSize>32</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
-						<Default>
-							<Value>4</Value>
-						</Default>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-						</Properties>
-						<BitOffs>3078496</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>ParameterList.ROOT</Name>
-						<BitSize>32</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
-						<Default>
-							<Value>8</Value>
-						</Default>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-						</Properties>
-						<BitOffs>3078528</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>ParameterList.KEYED_HASH</Name>
-						<BitSize>32</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
-						<Default>
-							<Value>16</Value>
-						</Default>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-						</Properties>
-						<BitOffs>3078560</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>ParameterList.DERIVE_KEY_CONTEXT</Name>
-						<BitSize>32</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
-						<Default>
-							<Value>32</Value>
-						</Default>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-						</Properties>
-						<BitOffs>3078592</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>ParameterList.DERIVE_KEY_MATERIAL</Name>
-						<BitSize>32</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
-						<Default>
-							<Value>64</Value>
-						</Default>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-						</Properties>
-						<BitOffs>3078624</BitOffs>
-					</Symbol>
-					<Symbol>
 						<Name>Global_Version.stLibVersion_Tc2_Utilities</Name>
 						<BitSize>288</BitSize>
 						<BaseType GUID="{6F5942ED-BFA1-497D-8225-23C6DAAD0A09}">ST_LibVersion</BaseType>
@@ -4145,14 +4004,278 @@
 								<Name>const_non_replaced</Name>
 							</Property>
 						</Properties>
-						<BitOffs>3078656</BitOffs>
+						<BitOffs>3077248</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>MAIN.unitTestOK</Name>
 						<Comment><![CDATA[ Unit test results]]></Comment>
 						<BitSize>8</BitSize>
 						<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-						<BitOffs>3078984</BitOffs>
+						<BitOffs>3077576</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>Global_Version.stLibVersion_Tc3_BLAKE3</Name>
+						<BitSize>288</BitSize>
+						<BaseType GUID="{6F5942ED-BFA1-497D-8225-23C6DAAD0A09}">ST_LibVersion</BaseType>
+						<Default>
+							<SubItem>
+								<Name>.iMajor</Name>
+								<Value>0</Value>
+							</SubItem>
+							<SubItem>
+								<Name>.iMinor</Name>
+								<Value>0</Value>
+							</SubItem>
+							<SubItem>
+								<Name>.iBuild</Name>
+								<Value>0</Value>
+							</SubItem>
+							<SubItem>
+								<Name>.iRevision</Name>
+								<Value>2</Value>
+							</SubItem>
+							<SubItem>
+								<Name>.nFlags</Name>
+								<Value>0</Value>
+							</SubItem>
+							<SubItem>
+								<Name>.sVersion</Name>
+								<String><![CDATA[0.0.0.2]]></String>
+							</SubItem>
+						</Default>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+							<Property>
+								<Name>const_non_replaced</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3077664</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>ParameterList.BLAKE3_OUT_LEN</Name>
+						<BitSize>32</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
+						<Default>
+							<Value>32</Value>
+						</Default>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3077952</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>ParameterList.BLAKE3_KEY_LEN</Name>
+						<BitSize>32</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
+						<Default>
+							<Value>32</Value>
+						</Default>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3077984</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>ParameterList.BLAKE3_BLOCK_LEN</Name>
+						<BitSize>32</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
+						<Default>
+							<Value>64</Value>
+						</Default>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3078016</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>ParameterList.BLAKE3_CHUNK_LEN</Name>
+						<BitSize>32</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
+						<Default>
+							<Value>1024</Value>
+						</Default>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3078048</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>ParameterList.MSG_PERMUTATION</Name>
+						<BitSize>512</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
+						<ArrayInfo>
+							<LBound>0</LBound>
+							<Elements>16</Elements>
+						</ArrayInfo>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3078080</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>ParameterList.IV</Name>
+						<BitSize>256</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
+						<ArrayInfo>
+							<LBound>0</LBound>
+							<Elements>8</Elements>
+						</ArrayInfo>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3078592</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>ParameterList.CHUNK_START</Name>
+						<BitSize>32</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
+						<Default>
+							<Value>1</Value>
+						</Default>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3078848</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>ParameterList.CHUNK_END</Name>
+						<BitSize>32</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
+						<Default>
+							<Value>2</Value>
+						</Default>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3078880</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>ParameterList.PARENT</Name>
+						<BitSize>32</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
+						<Default>
+							<Value>4</Value>
+						</Default>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3078912</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>ParameterList.ROOT</Name>
+						<BitSize>32</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
+						<Default>
+							<Value>8</Value>
+						</Default>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3078944</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>ParameterList.KEYED_HASH</Name>
+						<BitSize>32</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
+						<Default>
+							<Value>16</Value>
+						</Default>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3078976</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>ParameterList.DERIVE_KEY_CONTEXT</Name>
+						<BitSize>32</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
+						<Default>
+							<Value>32</Value>
+						</Default>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3079008</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>ParameterList.DERIVE_KEY_MATERIAL</Name>
+						<BitSize>32</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-000000000007}">DWORD</BaseType>
+						<Default>
+							<Value>64</Value>
+						</Default>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3079040</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>Global_Version.stLibVersion_Tc3_AlgoInterfaces</Name>
+						<BitSize>288</BitSize>
+						<BaseType GUID="{6F5942ED-BFA1-497D-8225-23C6DAAD0A09}">ST_LibVersion</BaseType>
+						<Default>
+							<SubItem>
+								<Name>.iMajor</Name>
+								<Value>0</Value>
+							</SubItem>
+							<SubItem>
+								<Name>.iMinor</Name>
+								<Value>0</Value>
+							</SubItem>
+							<SubItem>
+								<Name>.iBuild</Name>
+								<Value>0</Value>
+							</SubItem>
+							<SubItem>
+								<Name>.iRevision</Name>
+								<Value>1</Value>
+							</SubItem>
+							<SubItem>
+								<Name>.nFlags</Name>
+								<Value>0</Value>
+							</SubItem>
+							<SubItem>
+								<Name>.sVersion</Name>
+								<String><![CDATA[0.0.0.1]]></String>
+							</SubItem>
+						</Default>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+							<Property>
+								<Name>const_non_replaced</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3079072</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>MAIN.MAX_TESTSTRING_SIZE</Name>
@@ -4161,7 +4284,7 @@
 						<Default>
 							<Value>2000</Value>
 						</Default>
-						<BitOffs>3079072</BitOffs>
+						<BitOffs>3088256</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>MAIN.dataShort</Name>
@@ -4171,7 +4294,7 @@
 							<LBound>0</LBound>
 							<Elements>15</Elements>
 						</ArrayInfo>
-						<BitOffs>3087872</BitOffs>
+						<BitOffs>3088288</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>MAIN.dataShortResult</Name>
@@ -4181,7 +4304,7 @@
 							<LBound>0</LBound>
 							<Elements>32</Elements>
 						</ArrayInfo>
-						<BitOffs>3087992</BitOffs>
+						<BitOffs>3088408</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>MAIN.dataLong</Name>
@@ -4190,7 +4313,7 @@
 						<Default>
 							<String><![CDATA[F9W0D6B1M4P7L2R5C8X3Z6Q9J0K1H4N7T2V5G8S3A6E9Y0I1U4O7P2M5B8D3F6W9R0L1C4X7Z2Q5J8K3H6N9T0V1G4S7A2E5Y8I3U6O9P0M1B4D7F2W5R8L3C6X9Z0Q1J4K7H2N5T8V3G6S9A0E1Y4I7U2O5P8M3B6D9F0W1R4L7C2X5Z8Q3J6K9H0N1T4V7G2S5A8E3Y6I9U0O1P4M7B2D5F8W3R6L9C0X1Z4Q7J2K5H8N3T6V9G0S1A4E7Y2I5U8O3P6M9B0D1F4W7R2L5C8X3Z6Q9J0K1H4N7T2V5G8S3A6E9Y0I1U4O7P2M5B8D3F6W9R0L1C4X7Z2Q5J8K3H6N9T0V1G4S7A2E5Y8I3U6O9P0M1B4D7F2W5R8L3C6X9Z0Q1J4K7H2N5T8V3G6S9A0E1Y4I7U2O5P8M3B6D9F0W1R4L7C2X5Z8Q3J6K9H0N1T4V7G2S5A8E3Y6I9U0O1P4M7B2D5F8W3R6L9C0X1Z4Q7J2K5H8N3T6V9G0S1A4E7Y2I5U8O3P6M9B0D1F4W7R2L5C8X3Z6Q9J0K1H4N7T2V5G8S3A6E9Y0I1U4O7P2M5B8D3F6W9R0L1C4X7Z2Q5J8K3H6N9T0V1G4S7A2E5Y8I3U6O9P0M1B4D7F2W5R8L3C6X9Z0Q1J4K7H2N5T8V3G6S9A0E1Y4I7U2O5P8M3B6D9F0W1R4L7C2X5Z8Q3J6K9H0N1T4V7G2S5A8E3Y6I9U0O1P4M7B2D5F8W3R6L9C0X1Z4Q7J2K5H8N3T6V9G0S1A4E7Y2I5U8O3P6M9B0D1F4W7R2L5C8X3Z6Q9J0K1H4N7T2V5G8S3A6E9Y0I1U4O7P2M5B8D3F6W9R0L1C4X7Z2Q5J8K3H6N9T0V1G4S7A2E5Y8I3U6O9P0M1B4D7F2W5R8L3C6X9Z0Q1J4K7H2N5T8V3G6S9A0E1Y4I7U2O5P8M3B6D9F0W1R4L7C2X5Z8Q3J6K9H0N1T4V7G2S5A8E3Y6I9U0O1P4M7B2D5F8W3R6L9C0X1Z4Q7J2K5H8N3T6V9G0S1A4E7Y2I5U8O3P6M9B0D1F4W7R2L5C8X3Z6Q9J0K1H4N7T2V5G8S3A6E9Y0I1U4O7P2M5B8D3F6W9R0L1C4X7Z2Q5J8K3H6N9T0V1G4S7A2E5Y8I3U6O9P0M1B4D7F2W5R8L3C6X9Z0Q1J4K7H2N5T8V3G6S9A0E1Y4I7U2O5P8M3B6D9F0W1R4L7C2X5Z8Q3J6K9H0N1T4V7G2S5A8E3Y6I9U0O1P4M7B2D5F8W3R6L9C0X1Z4Q7J2K5H8N3T6V9G0S1A4E7Y2I5U8O3P6M9B0D1F4W7R2L5C8X3Z6Q9J0K1H4N7T2V5G8S3A6E9Y0I1U4O7P2M5B8D3F6W9R0L1C4X7Z2Q5J8K3H6N9T0V1G4S7A2E5Y8I3U6O9P0M1B4D7F2W5R8L3C6X9Z0Q1J4K7H2N5T8V3G6S9A0E1Y4I7U2O5P8M3B6D9F0W1R4L7C2X5Z8Q3J6K9H0N1T4V7G2S5A8E3Y6I9U0O1P4M7B2D5F8W3R6L9C0X1Z4Q7J2K5H8N3T6V9G0S1A4E7Y2I5U8O3P6M9B0D1F4W7R2L5C8X3Z6Q9J0K1H4N7T2V5G8S3A6E9Y0I1U4O7P2M5B8D3F6W9R0L1C4X7Z2Q5J8K3H6N9T0V1G4S7A2E5Y8I3U6O9P0M1B4D7F2W5R8L]]></String>
 						</Default>
-						<BitOffs>3088248</BitOffs>
+						<BitOffs>3088664</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>MAIN.dataLong01</Name>
@@ -4200,7 +4323,7 @@
 						<Default>
 							<String><![CDATA[F9W0D6B1M4P7L2R5C8X3Z6Q9J0K1H4N7T2V5G8S3A6E9Y0I1U4O7P2M5B8D3F6W9R0L1C4X7Z2Q5J8K3H6N9T0V1G4S7A2E5Y8I3U6O9P0M1B4D7F2W5R8L3C6X9Z0Q1J4K7H2N5T8V3G6S9A0E1Y4I7U2O5P8M3B6D9F0W1R4L7C2X5Z8Q3J6K9H0N1T4V7G2S5A8E3Y6I9U0O1P4M7B2D5F8W3R6L9C0X1Z4Q7J2K5H8N3T6V9G0S1A4E7Y2I5U8O3P6M9B0D1F4W7R2L5C8X3Z6Q9J0K1H4N7T2V5G8S3A6E9Y0I1U4O7P2M5B8D3F6W9R0L1C4X7Z2Q5J8K3H6N9T0V1G4S7A2E5Y8I3U6O9P0M1B4D7F2W5R8L3C6X9Z0Q1J4K7H2N5T8V3G6S9A0E1Y4I7U2O5P8M3B6D9F0W1R4L7C2X5Z8Q3J6K9H0N1T4V7G2S5A8E3Y6I9U0O1P4M7B2D5F8W3R6L9C0X1Z4Q7J2K5H8N3T6V9G0S1A4E7Y2I5U8O3P6M9B0D1F4W7R2L5C8X3Z6Q9J0K1H4N7T2V5G8S3A6E9Y0I1U4O7P2M5B8D3F6W9R0L1C4X7Z2Q5J8K3H6N9T0V1G4S7A2E5Y8I3U6O9P0M1B4D7F2W5R8L3C6X9Z0Q1J4K7H2N5T8V3G6S9A0E1Y4I7U2O5P8M3B6D9F0W1R4L7C2X5Z8Q3J6K9H0N1T4V7G2S5A8E3Y6I9U0O1P4M7B2D5F8W3R6L9C0X1Z4Q7J2K5H8N3T6V9G0S1A4E7Y2I5U8O3P6M9B0D1F4W7R2L5C8X3Z6Q9J0K1H4N7T2V5G8S3A6E9Y0I1U4O7P2M5B8D3F6W9R0L1C4X7Z2Q5J8K3H6N9T0V1G4S7A2E5Y8I3U6O9P0M1B4D7F2W5R8L3C6X9Z0Q1J4K7H2N5T8V3G6S9]]></String>
 						</Default>
-						<BitOffs>3104256</BitOffs>
+						<BitOffs>3104672</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>MAIN.dataLong02</Name>
@@ -4209,7 +4332,7 @@
 						<Default>
 							<String><![CDATA[A0E1Y4I7U2O5P8M3B6D9F0W1R4L7C2X5Z8Q3J6K9H0N1T4V7G2S5A8E3Y6I9U0O1P4M7B2D5F8W3R6L9C0X1Z4Q7J2K5H8N3T6V9G0S1A4E7Y2I5U8O3P6M9B0D1F4W7R2L5C8X3Z6Q9J0K1H4N7T2V5G8S3A6E9Y0I1U4O7P2M5B8D3F6W9R0L1C4X7Z2Q5J8K3H6N9T0V1G4S7A2E5Y8I3U6O9P0M1B4D7F2W5R8L3C6X9Z0Q1J4K7H2N5T8V3G6S9A0E1Y4I7U2O5P8M3B6D9F0W1R4L7C2X5Z8Q3J6K9H0N1T4V7G2S5A8E3Y6I9U0O1P4M7B2D5F8W3R6L9C0X1Z4Q7J2K5H8N3T6V9G0S1A4E7Y2I5U8O3P6M9B0D1F4W7R2L5C8X3Z6Q9J0K1H4N7T2V5G8S3A6E9Y0I1U4O7P2M5B8D3F6W9R0L1C4X7Z2Q5J8K3H6N9T0V1G4S7A2E5Y8I3U6O9P0M1B4D7F2W5R8L3C6X9Z0Q1J4K7H2N5T8V3G6S9A0E1Y4I7U2O5P8M3B6D9F0W1R4L7C2X5Z8Q3J6K9H0N1T4V7G2S5A8E3Y6I9U0O1P4M7B2D5F8W3R6L9C0X1Z4Q7J2K5H8N3T6V9G0S1A4E7Y2I5U8O3P6M9B0D1F4W7R2L5C8X3Z6Q9J0K1H4N7T2V5G8S3A6E9Y0I1U4O7P2M5B8D3F6W9R0L1C4X7Z2Q5J8K3H6N9T0V1G4S7A2E5Y8I3U6O9P0M1B4D7F2W5R8L]]></String>
 						</Default>
-						<BitOffs>3120264</BitOffs>
+						<BitOffs>3120680</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>MAIN.dataLongResult</Name>
@@ -4219,7 +4342,7 @@
 							<LBound>0</LBound>
 							<Elements>32</Elements>
 						</ArrayInfo>
-						<BitOffs>3136272</BitOffs>
+						<BitOffs>3136688</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>MAIN.key</Name>
@@ -4229,7 +4352,7 @@
 							<LBound>0</LBound>
 							<Elements>32</Elements>
 						</ArrayInfo>
-						<BitOffs>3136528</BitOffs>
+						<BitOffs>3136944</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>MAIN.derive_key_context</Name>
@@ -4239,67 +4362,67 @@
 						<Default>
 							<String><![CDATA[My application context string]]></String>
 						</Default>
-						<BitOffs>3136784</BitOffs>
+						<BitOffs>3137200</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>MAIN.unitTestShort</Name>
 						<BitSize>8</BitSize>
 						<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-						<BitOffs>3138832</BitOffs>
+						<BitOffs>3139248</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>MAIN.unitTestLong</Name>
 						<BitSize>8</BitSize>
 						<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-						<BitOffs>3138840</BitOffs>
+						<BitOffs>3139256</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>MAIN.unitTestLong2Pieces</Name>
 						<BitSize>8</BitSize>
 						<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-						<BitOffs>3138848</BitOffs>
+						<BitOffs>3139264</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>RefVectorTests.initialized</Name>
 						<BitSize>8</BitSize>
 						<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-						<BitOffs>3138856</BitOffs>
+						<BitOffs>3139272</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>RefVectorTests.startTest</Name>
 						<BitSize>8</BitSize>
 						<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-						<BitOffs>3138864</BitOffs>
+						<BitOffs>3139280</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>RefVectorTests.refTest1OK</Name>
 						<BitSize>8</BitSize>
 						<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-						<BitOffs>3138872</BitOffs>
+						<BitOffs>3139288</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>RefVectorTests.refTest2OK</Name>
 						<BitSize>8</BitSize>
 						<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-						<BitOffs>3138880</BitOffs>
+						<BitOffs>3139296</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>RefVectorTests.refTest3OK</Name>
 						<BitSize>8</BitSize>
 						<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-						<BitOffs>3138888</BitOffs>
+						<BitOffs>3139304</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>RefVectorTests.refAllTestsOK</Name>
 						<BitSize>8</BitSize>
 						<BaseType GUID="{18071995-0000-0000-0000-000000000030}">BOOL</BaseType>
-						<BitOffs>3138896</BitOffs>
+						<BitOffs>3139312</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>RefVectorTests.i</Name>
 						<BitSize>16</BitSize>
 						<BaseType GUID="{18071995-0000-0000-0000-000000000006}">INT</BaseType>
-						<BitOffs>3138912</BitOffs>
+						<BitOffs>3139328</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>RefVectorTests.refHash</Name>
@@ -4309,7 +4432,7 @@
 							<LBound>0</LBound>
 							<Elements>32</Elements>
 						</ArrayInfo>
-						<BitOffs>3138928</BitOffs>
+						<BitOffs>3139344</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>GVL_BLAKE3.BLAKE3TESTVECTORNO</Name>
@@ -4323,18 +4446,32 @@
 								<Name>TcVarGlobal</Name>
 							</Property>
 						</Properties>
-						<BitOffs>3139184</BitOffs>
+						<BitOffs>3139600</BitOffs>
 					</Symbol>
 					<Symbol>
-						<Name>GVL_BLAKE3.hasher</Name>
-						<BitSize>15168</BitSize>
-						<BaseType GUID="{47DA8583-0AEF-64CB-35BB-440FB4150DAE}">Tc3_BLAKE3.BLAKE3</BaseType>
+						<Name>GVL_BLAKE3.BLAKE3TESTINPUTSIZE</Name>
+						<BitSize>32</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
+						<Default>
+							<Value>102400</Value>
+						</Default>
 						<Properties>
 							<Property>
 								<Name>TcVarGlobal</Name>
 							</Property>
 						</Properties>
-						<BitOffs>3139200</BitOffs>
+						<BitOffs>3139616</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>GVL_BLAKE3.hasher</Name>
+						<BitSize>15872</BitSize>
+						<BaseType GUID="{BD7B4E7F-327E-3271-35E4-38A98EB2BBEF}">Tc3_BLAKE3.BLAKE3</BaseType>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+						</Properties>
+						<BitOffs>3139648</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>GVL_BLAKE3.hash</Name>
@@ -4349,7 +4486,7 @@
 								<Name>TcVarGlobal</Name>
 							</Property>
 						</Properties>
-						<BitOffs>3154368</BitOffs>
+						<BitOffs>3155520</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>GVL_BLAKE3.Blake3TestInput</Name>
@@ -4364,7 +4501,7 @@
 								<Name>TcVarGlobal</Name>
 							</Property>
 						</Properties>
-						<BitOffs>3154624</BitOffs>
+						<BitOffs>3155776</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>GVL_BLAKE3.Blake3TestVectors</Name>
@@ -4380,7 +4517,7 @@
 								<Name>TcVarGlobal</Name>
 							</Property>
 						</Properties>
-						<BitOffs>3973824</BitOffs>
+						<BitOffs>3974976</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>GVL_BLAKE3.Blake3Testkey</Name>
@@ -4394,7 +4531,7 @@
 								<Name>TcVarGlobal</Name>
 							</Property>
 						</Properties>
-						<BitOffs>4196704</BitOffs>
+						<BitOffs>4197856</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>GVL_BLAKE3.Blake3TestkeyHex</Name>
@@ -4409,7 +4546,7 @@
 								<Name>TcVarGlobal</Name>
 							</Property>
 						</Properties>
-						<BitOffs>4197352</BitOffs>
+						<BitOffs>4198504</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>GVL_BLAKE3.Blake3ContextString</Name>
@@ -4423,35 +4560,7 @@
 								<Name>TcVarGlobal</Name>
 							</Property>
 						</Properties>
-						<BitOffs>4197608</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>GVL_BLAKE3.BLAKE3TESTINPUTSIZE</Name>
-						<BitSize>32</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-000000000008}">UDINT</BaseType>
-						<Default>
-							<Value>102400</Value>
-						</Default>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-						</Properties>
-						<BitOffs>4198272</BitOffs>
-					</Symbol>
-					<Symbol>
-						<Name>TwinCAT_SystemInfoVarList._TaskPouOid_PlcTask</Name>
-						<BitSize>32</BitSize>
-						<BaseType GUID="{18071995-0000-0000-0000-00000000000F}">OTCID</BaseType>
-						<Properties>
-							<Property>
-								<Name>TcVarGlobal</Name>
-							</Property>
-							<Property>
-								<Name>no_init</Name>
-							</Property>
-						</Properties>
-						<BitOffs>4198560</BitOffs>
+						<BitOffs>4198760</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>TwinCAT_SystemInfoVarList._AppInfo</Name>
@@ -4465,7 +4574,7 @@
 								<Name>no_init</Name>
 							</Property>
 						</Properties>
-						<BitOffs>4198592</BitOffs>
+						<BitOffs>4199680</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>TwinCAT_SystemInfoVarList._TaskInfo</Name>
@@ -4483,7 +4592,21 @@
 								<Name>no_init</Name>
 							</Property>
 						</Properties>
-						<BitOffs>4200640</BitOffs>
+						<BitOffs>4201728</BitOffs>
+					</Symbol>
+					<Symbol>
+						<Name>TwinCAT_SystemInfoVarList._TaskPouOid_PlcTask</Name>
+						<BitSize>32</BitSize>
+						<BaseType GUID="{18071995-0000-0000-0000-00000000000F}">OTCID</BaseType>
+						<Properties>
+							<Property>
+								<Name>TcVarGlobal</Name>
+							</Property>
+							<Property>
+								<Name>no_init</Name>
+							</Property>
+						</Properties>
+						<BitOffs>4202752</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>TwinCAT_SystemInfoVarList._TaskOid_PlcTask</Name>
@@ -4497,7 +4620,7 @@
 								<Name>no_init</Name>
 							</Property>
 						</Properties>
-						<BitOffs>4201664</BitOffs>
+						<BitOffs>4202784</BitOffs>
 					</Symbol>
 					<Symbol>
 						<Name>TwinCAT_SystemInfoVarList.__PlcTask</Name>
@@ -4518,7 +4641,7 @@
 								<Value>PlcTask</Value>
 							</Property>
 						</Properties>
-						<BitOffs>4201728</BitOffs>
+						<BitOffs>4202816</BitOffs>
 					</Symbol>
 				</DataArea>
 			</DataAreas>
@@ -4529,11 +4652,11 @@
 				</Property>
 				<Property>
 					<Name>ChangeDate</Name>
-					<Value>2025-07-29T14:06:25</Value>
+					<Value>2025-08-01T22:17:24</Value>
 				</Property>
 				<Property>
 					<Name>GeneratedCodeSize</Name>
-					<Value>122880</Value>
+					<Value>126976</Value>
 				</Property>
 				<Property>
 					<Name>GlobalDataSize</Name>
@@ -4560,7 +4683,7 @@
 				</Value>
 				<Value>
 					<Name>Application Timestamp</Name>
-					<Value>1753797985</Value>
+					<Value>1754086644</Value>
 				</Value>
 				<Value>
 					<Name>Symbolic Mapping</Name>

@@ -17,10 +17,10 @@
     <Implicit_KindOfTask>{3ac9d500-34d7-4ab6-a2c6-edf6ff036154}</Implicit_KindOfTask>
     <Implicit_Jitter_Distribution>{b379e3ea-d7fd-4712-ad87-52fc4d3f43be}</Implicit_Jitter_Distribution>
     <LibraryReferences>{fba2c9a2-8864-4248-b101-8b3349a39272}</LibraryReferences>
-    <Company>Kim Robbens</Company>
+    <Company>RKe</Company>
     <Released>false</Released>
     <Title>Tc3_BLAKE3</Title>
-    <ProjectVersion>0.0.0.1</ProjectVersion>
+    <ProjectVersion>0.0.0.2</ProjectVersion>
     <LibraryCategories>
       <LibraryCategory xmlns="">
         <Id>{f4989e8e-47d4-4338-9af0-ff4afed3d496}</Id>
@@ -41,9 +41,13 @@
     </SelectedLibraryCategories>
     <GlobalVersionStructureIncluded>true</GlobalVersionStructureIncluded>
     <POUsForPropertyAccessIncluded>true</POUsForPropertyAccessIncluded>
+    <DefaultNamespace>Tc3_BLAKE3</DefaultNamespace>
+    <Author>Kim Robbens</Author>
+    <Description>Library for hash calculation with the BLAKE3 algorithm</Description>
   </PropertyGroup>
   <ItemGroup>
     <Folder Include="DUTs" />
+    <Folder Include="ITFs" />
     <Folder Include="POUs" />
     <Folder Include="Project Information" />
     <Folder Include="Version" />
@@ -59,6 +63,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="DUTs\size_t.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ITFs\IDigestBlake3.TcIO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="ParameterList.TcGVL">
@@ -93,6 +100,10 @@
       <DefaultResolution>Tc2_Utilities, * (Beckhoff Automation GmbH)</DefaultResolution>
       <Namespace>Tc2_Utilities</Namespace>
     </PlaceholderReference>
+    <PlaceholderReference Include="Tc3_AlgoInterfaces">
+      <DefaultResolution>Tc3_AlgoInterfaces, * (RKe)</DefaultResolution>
+      <Namespace>Tc3_AlgoInterfaces</Namespace>
+    </PlaceholderReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="Tc3_BLAKE3.tmc">
@@ -102,8 +113,8 @@
   <ProjectExtensions>
     <PlcProjectOptions>
       <XmlArchive>
-  <Data>
-    <o xml:space="preserve" t="OptionKey">
+        <Data>
+          <o xml:space="preserve" t="OptionKey">
       <v n="Name">"&lt;ProjectRoot&gt;"</v>
       <d n="SubKeys" t="Hashtable" ckt="String" cvt="OptionKey">
         <v>{8F99A816-E488-41E4-9FA3-846536012284}</v>
@@ -178,15 +189,15 @@
       </d>
       <d n="Values" t="Hashtable" />
     </o>
-  </Data>
-  <TypeList>
-    <Type n="Boolean">System.Boolean</Type>
-    <Type n="Hashtable">System.Collections.Hashtable</Type>
-    <Type n="Int32">System.Int32</Type>
-    <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
-    <Type n="String">System.String</Type>
-  </TypeList>
-</XmlArchive>
+        </Data>
+        <TypeList>
+          <Type n="Boolean">System.Boolean</Type>
+          <Type n="Hashtable">System.Collections.Hashtable</Type>
+          <Type n="Int32">System.Int32</Type>
+          <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
+          <Type n="String">System.String</Type>
+        </TypeList>
+      </XmlArchive>
     </PlcProjectOptions>
   </ProjectExtensions>
 </Project>

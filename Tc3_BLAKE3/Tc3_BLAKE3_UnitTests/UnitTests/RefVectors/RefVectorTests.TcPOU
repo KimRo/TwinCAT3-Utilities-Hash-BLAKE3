@@ -31,25 +31,25 @@ refAllTestsOK		:= TRUE;
 FOR i := 0 TO BLAKE3TESTVECTORNO		DO
 // Scenario 1: Basic hashing (no key, no derive key)
 	// Initialize, hash and finalize
-	hasher.blake3_hasher_init();
-	hasher.blake3_hasher_update(ADR(Blake3TestInput), Blake3TestVectors[i].input_len);
-	hasher.blake3_hasher_finalize(hasher.self, hash);
+	hasher.init();
+	hasher.update(ADR(Blake3TestInput), Blake3TestVectors[i].input_len);
+	hasher.finalize(hash);
 	memset(ADR(refHash), 16#0, SIZEOF(refHash));
 	hasher.key_bytes_from_hex_string(Blake3TestVectors[i].hash, refHash);
 	refTest1OK		:= memcmp(ADR(hash), ADR(refhash), Tc3_BLAKE3.ParameterList.BLAKE3_OUT_LEN) = 0;
 	refAllTestsOK 	:= refAllTestsOK AND refTest1OK;
 // Scenario 2: Keyed hashing
-	hasher.blake3_hasher_init_keyed(Blake3TestKeyHex);
-	hasher.blake3_hasher_update(ADR(Blake3TestInput), Blake3TestVectors[i].input_len);
-	hasher.blake3_hasher_finalize(hasher.self, hash);
+	hasher.init_keyed(Blake3TestKeyHex);
+	hasher.update(ADR(Blake3TestInput), Blake3TestVectors[i].input_len);
+	hasher.finalize(hash);
 	memset(ADR(refHash), 16#0, SIZEOF(refHash));
 	hasher.key_bytes_from_hex_string(Blake3TestVectors[i].keyed_hash, refHash);
 	refTest2OK		:= memcmp(ADR(hash), ADR(refhash), Tc3_BLAKE3.ParameterList.BLAKE3_OUT_LEN) = 0;
 	refAllTestsOK 	:= refAllTestsOK AND refTest2OK;	
 // Scenario 3: Derive key
-	hasher.blake3_hasher_init_derive_key(Blake3ContextString);
-	hasher.blake3_hasher_update(ADR(Blake3TestInput), Blake3TestVectors[i].input_len);
-	hasher.blake3_hasher_finalize(hasher.self, hash);
+	hasher.init_derive_key(Blake3ContextString);
+	hasher.update(ADR(Blake3TestInput), Blake3TestVectors[i].input_len);
+	hasher.finalize(hash);
 	memset(ADR(refHash), 16#0, SIZEOF(refHash));
 	hasher.key_bytes_from_hex_string(Blake3TestVectors[i].derive_key, refHash);
 	refTest3OK		:= memcmp(ADR(hash), ADR(refhash), Tc3_BLAKE3.ParameterList.BLAKE3_OUT_LEN) = 0;
@@ -82,7 +82,7 @@ END_WHILE
 
 // Convert key string to hex array
 hasher.key_bytes_from_string(Blake3Testkey, temp);
-memcpy(ADR(Blake3TestkeyHex), ADR(temp), Tc3_BLAKE3.parameterList.BLAKE3_KEY_LEN);
+memcpy(ADR(Blake3TestkeyHex), ADR(temp), Tc3_BLAKE3.ParameterList.BLAKE3_KEY_LEN);
 
 // This program needs to be executed once, for example, in the INITIALIZATION section of your PLC program.
 // Or, if your PLC supports direct array initialization in the declaration, that would be even cleaner.
